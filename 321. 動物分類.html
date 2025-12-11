@@ -1,0 +1,501 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動物五大分類挑戰</title>
+    <style>
+        :root {
+            --bg-color: #e0f7fa;
+            --box-bg: #ffffff;
+            --wrong-color: #ff5252;
+            --correct-color: #66bb6a;
+            --mammal-color: #ffcc80;
+            --bird-color: #90caf9;
+            --reptile-color: #a5d6a7;
+            --amphibian-color: #ce93d8;
+            --fish-color: #80cbc4;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: #006064;
+            margin: 10px 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            gap: 15px;
+            position: sticky;
+            top: 10px;
+            z-index: 10;
+        }
+
+        .lives {
+            color: var(--wrong-color);
+            font-weight: bold;
+        }
+
+        .score {
+            color: var(--correct-color);
+            font-weight: bold;
+        }
+
+        /* Categories Container (Top Half) */
+        .categories-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 30px;
+        }
+
+        .category-box {
+            width: 140px;
+            min-height: 160px;
+            background-color: var(--box-bg);
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .category-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            width: 80%;
+            text-align: center;
+            color: #333;
+        }
+
+        /* Specific Colors for Categories */
+        .cat-mammal h3 { background-color: var(--mammal-color); }
+        .cat-bird h3 { background-color: var(--bird-color); }
+        .cat-reptile h3 { background-color: var(--reptile-color); }
+        .cat-amphibian h3 { background-color: var(--amphibian-color); }
+        .cat-fish h3 { background-color: var(--fish-color); }
+
+        .category-box.highlight {
+            border-color: #00bcd4;
+            transform: scale(1.05);
+            background-color: #e0f2f1;
+        }
+
+        .category-box.wrong-flash {
+            animation: shake 0.5s;
+            border-color: var(--wrong-color);
+            background-color: #ffcdd2;
+        }
+
+        /* Animals Container (Bottom Half) */
+        .animals-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 15px;
+            min-height: 150px;
+        }
+
+        /* Draggable Animal Card */
+        .animal-card {
+            width: 90px;
+            height: 90px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            transition: transform 0.2s;
+            touch-action: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #444;
+        }
+
+        .animal-card span {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .animal-card:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+            z-index: 100;
+        }
+
+        .animal-card.dragging {
+            opacity: 0.5;
+        }
+
+        /* Style for animals once dropped inside a box */
+        .category-box .animal-card {
+            width: 100%;
+            height: 35px;
+            flex-direction: row;
+            gap: 5px;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+            cursor: default;
+            box-shadow: none;
+            border: 1px solid #eee;
+        }
+        .category-box .animal-card span {
+            font-size: 1.2rem;
+            margin-bottom: 0;
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Modal Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .message-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 85%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .message-box h2 {
+            margin-top: 0;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .btn-restart {
+            background-color: #00bcd4;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+
+        .btn-restart:hover {
+            background-color: #00838f;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 600px) {
+            .category-box {
+                width: 45%; /* 2 per row */
+                min-height: 120px;
+            }
+            .animal-card {
+                width: 70px;
+                height: 70px;
+            }
+            .animal-card span {
+                font-size: 1.5rem;
+            }
+            h1 { font-size: 1.2rem; }
+        }
+    </style>
+<script src="https://puc.poecdn.net/authenticated_preview_page/syncedState.3f7572448765332f3047.js"></script></head>
+<body>
+
+    <h1>動物分類大挑戰</h1>
+    
+    <div class="status-bar">
+        <span>❤️ 機會: <span id="lives-count" class="lives">3</span></span>
+        <span>✅ 進度: <span id="score-count" class="score">0</span>/10</span>
+    </div>
+
+    <!-- Top: Categories -->
+    <div class="categories-container">
+        <div class="category-box cat-mammal drop-zone" data-type="mammal">
+            <h3>哺乳類</h3>
+        </div>
+        <div class="category-box cat-bird drop-zone" data-type="bird">
+            <h3>鳥類</h3>
+        </div>
+        <div class="category-box cat-reptile drop-zone" data-type="reptile">
+            <h3>爬行類</h3>
+        </div>
+        <div class="category-box cat-amphibian drop-zone" data-type="amphibian">
+            <h3>兩棲類</h3>
+        </div>
+        <div class="category-box cat-fish drop-zone" data-type="fish">
+            <h3>魚類</h3>
+        </div>
+    </div>
+
+    <!-- Bottom: Animals Pool -->
+    <div class="animals-pool" id="animals-pool">
+        <!-- Animals will be injected here by JS -->
+    </div>
+
+    <!-- End Game Overlay -->
+    <div class="overlay" id="overlay">
+        <div class="message-box">
+            <h2 id="result-title">遊戲結束</h2>
+            <p id="result-msg">...</p>
+            <button class="btn-restart" onclick="location.reload()">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // Game Data
+        const animalsData = [
+            { name: "獅子", icon: "🦁", type: "mammal" },
+            { name: "鯨魚", icon: "🐋", type: "mammal" }, // Trickier one
+            { name: "企鵝", icon: "🐧", type: "bird" },   // Flightless bird
+            { name: "麻雀", icon: "🐦", type: "bird" },
+            { name: "蛇", icon: "🐍", type: "reptile" },
+            { name: "烏龜", icon: "🐢", type: "reptile" },
+            { name: "青蛙", icon: "🐸", type: "amphibian" },
+            { name: "蠑螈", icon: "🦎", type: "amphibian" }, // Using lizard icon but named Salamander for context
+            { name: "鯊魚", icon: "🦈", type: "fish" },
+            { name: "金魚", icon: "🐠", type: "fish" }
+        ];
+
+        // Game State
+        let lives = 3;
+        let score = 0;
+        const totalAnimals = animalsData.length;
+
+        // DOM Elements
+        const animalsPool = document.getElementById('animals-pool');
+        const livesEl = document.getElementById('lives-count');
+        const scoreEl = document.getElementById('score-count');
+        const overlay = document.getElementById('overlay');
+        const resultTitle = document.getElementById('result-title');
+        const resultMsg = document.getElementById('result-msg');
+        const dropZones = document.querySelectorAll('.drop-zone');
+
+        // Initialize Game
+        function initGame() {
+            // Shuffle animals
+            const shuffled = [...animalsData].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(animal => {
+                const el = document.createElement('div');
+                el.classList.add('animal-card', 'draggable');
+                el.draggable = true;
+                el.setAttribute('data-type', animal.type);
+                el.innerHTML = `<span>${animal.icon}</span>${animal.name}`;
+                animalsPool.appendChild(el);
+            });
+
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            const draggables = document.querySelectorAll('.draggable');
+            let draggedItem = null;
+
+            // --- Desktop Drag Events ---
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', () => {
+                    draggedItem = draggable;
+                    draggable.classList.add('dragging');
+                });
+
+                draggable.addEventListener('dragend', () => {
+                    draggable.classList.remove('dragging');
+                    draggedItem = null;
+                });
+            });
+
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('highlight');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('highlight');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('highlight');
+                    if (draggedItem) {
+                        checkAnswer(zone, draggedItem);
+                    }
+                });
+            });
+
+            // --- Mobile Touch Events ---
+            draggables.forEach(draggable => {
+                draggable.addEventListener('touchstart', (e) => {
+                    draggedItem = draggable;
+                    draggable.classList.add('dragging');
+                    document.body.style.overflow = 'hidden'; // Stop scrolling
+                }, {passive: false});
+
+                draggable.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    
+                    // Visual feedback following finger
+                    draggable.style.position = 'fixed';
+                    draggable.style.left = (touch.clientX - draggable.offsetWidth / 2) + 'px';
+                    draggable.style.top = (touch.clientY - draggable.offsetHeight / 2) + 'px';
+                    draggable.style.zIndex = 1000;
+
+                    // Highlight zone under finger
+                    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    dropZones.forEach(z => z.classList.remove('highlight'));
+                    if (elementBelow) {
+                        const zone = elementBelow.closest('.drop-zone');
+                        if (zone) zone.classList.add('highlight');
+                    }
+                }, {passive: false});
+
+                draggable.addEventListener('touchend', (e) => {
+                    draggable.classList.remove('dragging');
+                    document.body.style.overflow = ''; // Resume scrolling
+                    
+                    // Reset styles
+                    draggable.style.position = '';
+                    draggable.style.left = '';
+                    draggable.style.top = '';
+                    draggable.style.zIndex = '';
+
+                    const touch = e.changedTouches[0];
+                    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    
+                    dropZones.forEach(z => z.classList.remove('highlight'));
+
+                    if (elementBelow) {
+                        const zone = elementBelow.closest('.drop-zone');
+                        if (zone) {
+                            checkAnswer(zone, draggable);
+                        }
+                    }
+                    draggedItem = null;
+                });
+            });
+        }
+
+        function checkAnswer(zone, item) {
+            const zoneType = zone.getAttribute('data-type');
+            const itemType = item.getAttribute('data-type');
+
+            if (zoneType === itemType) {
+                // Correct!
+                handleCorrect(zone, item);
+            } else {
+                // Wrong!
+                handleWrong(zone);
+            }
+        }
+
+        function handleCorrect(zone, item) {
+            // Move item to zone
+            item.classList.remove('draggable');
+            item.removeAttribute('draggable');
+            // Clone to remove old event listeners (make it static)
+            const newItem = item.cloneNode(true);
+            zone.appendChild(newItem);
+            item.remove(); // Remove from pool
+
+            score++;
+            scoreEl.innerText = score;
+
+            if (score === totalAnimals) {
+                endGame(true);
+            }
+        }
+
+        function handleWrong(zone) {
+            lives--;
+            livesEl.innerText = lives;
+            
+            // Visual feedback
+            zone.classList.add('wrong-flash');
+            setTimeout(() => {
+                zone.classList.remove('wrong-flash');
+            }, 500);
+
+            if (lives <= 0) {
+                endGame(false);
+            }
+        }
+
+        function endGame(isWin) {
+            overlay.style.display = 'flex';
+            if (isWin) {
+                resultTitle.innerText = "🎉 恭喜獲勝！";
+                resultTitle.style.color = "#4caf50";
+                resultMsg.innerText = "你成功分類了所有動物！";
+            } else {
+                resultTitle.innerText = "💀 遊戲結束";
+                resultTitle.style.color = "#f44336";
+                resultMsg.innerText = "機會用完了，再試一次吧！";
+            }
+        }
+
+        // Start
+        initGame();
+
+    </script>
+
+
+</body></html>
