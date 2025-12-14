@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動物分類大挑戰</title>
+    <style>
+        :root {
+            --mammal-color: #FFB7B2;
+            --bird-color: #B5EAD7;
+            --reptile-color: #E2F0CB;
+            --amphibian-color: #FFDAC1;
+            --fish-color: #C7CEEA;
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .lives {
+            color: #ff4757;
+        }
+
+        /* 遊戲區域佈局 */
+        .game-area {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* 上半部分：分類區 */
+        .categories-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .drop-zone {
+            flex: 1;
+            min-width: 150px;
+            height: 200px;
+            border: 3px dashed #ccc;
+            border-radius: 10px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone h3 {
+            margin: 0 0 10px 0;
+            pointer-events: none;
+        }
+
+        .drop-zone.drag-over {
+            background-color: #e0f7fa;
+            border-color: #00bcd4;
+            transform: scale(1.02);
+        }
+
+        /* 分類顏色標籤 */
+        .zone-mammal { border-color: var(--mammal-color); background-color: rgba(255, 183, 178, 0.1); }
+        .zone-bird { border-color: var(--bird-color); background-color: rgba(181, 234, 215, 0.1); }
+        .zone-reptile { border-color: var(--reptile-color); background-color: rgba(226, 240, 203, 0.1); }
+        .zone-amphibian { border-color: var(--amphibian-color); background-color: rgba(255, 218, 193, 0.1); }
+        .zone-fish { border-color: var(--fish-color); background-color: rgba(199, 206, 234, 0.1); }
+
+        /* 下半部分：動物區 */
+        .animals-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-height: 100px;
+        }
+
+        .animal-card {
+            background-color: #fff;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: grab;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            user-select: none;
+        }
+
+        .animal-card:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        .animal-card.correct {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+            cursor: default;
+        }
+
+        /* 動畫：錯誤時震動 */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+            border-color: red !important;
+            background-color: #ffe6e6 !important;
+        }
+
+        /* 模態視窗 (Modal) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .btn:hover { background-color: #45a049; }
+        
+        .hidden { display: none; }
+
+    </style>
+</head>
+<body>
+
+    <h1>動物分類大挑戰</h1>
+    
+    <div class="status-bar">
+        <div class="lives">剩餘機會: <span id="lives-count">3</span></div>
+        <div class="score">已完成: <span id="score-count">0</span>/10</div>
+    </div>
+
+    <div class="game-area">
+        <div class="categories-container">
+            <div class="drop-zone zone-mammal" data-category="mammal">
+                <h3>哺乳類</h3>
+            </div>
+            <div class="drop-zone zone-bird" data-category="bird">
+                <h3>鳥類</h3>
+            </div>
+            <div class="drop-zone zone-reptile" data-category="reptile">
+                <h3>爬行類</h3>
+            </div>
+            <div class="drop-zone zone-amphibian" data-category="amphibian">
+                <h3>兩棲類</h3>
+            </div>
+            <div class="drop-zone zone-fish" data-category="fish">
+                <h3>魚類</h3>
+            </div>
+        </div>
+
+        <div class="animals-container" id="animal-pool">
+            </div>
+    </div>
+
+    <div id="game-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">標題</h2>
+            <p id="modal-message">訊息</p>
+            <button class="btn" onclick="location.reload()">重新開始</button>
+        </div>
+    </div>
+
+    <script>
+        // 動物資料與正確分類
+        const animals = [
+            { name: "🐼 熊貓", category: "mammal" },
+            { name: "🦈 鯊魚", category: "fish" },
+            { name: "🐬 海豚", category: "mammal" },
+            { name: "🐋 鯨魚", category: "mammal" },
+            { name: "🐔 母雞", category: "bird" },
+            { name: "🐊 鱷魚", category: "reptile" },
+            { name: "🦎 蠑螈", category: "amphibian" },
+            { name: "🦇 蝙蝠", category: "mammal" },
+            { name: "🐧 企鵝", category: "bird" },
+            { name: "🐍 蛇", category: "reptile" }
+        ];
+
+        let lives = 3;
+        let correctCount = 0;
+        const totalAnimals = animals.length;
+
+        const animalPool = document.getElementById('animal-pool');
+        const livesDisplay = document.getElementById('lives-count');
+        const scoreDisplay = document.getElementById('score-count');
+        const modal = document.getElementById('game-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+
+        // 初始化遊戲
+        function initGame() {
+            // 隨機打亂動物順序
+            animals.sort(() => Math.random() - 0.5);
+
+            animals.forEach(animal => {
+                const el = document.createElement('div');
+                el.classList.add('animal-card');
+                el.setAttribute('draggable', 'true');
+                el.dataset.category = animal.category; // 儲存正確答案
+                el.innerText = animal.name;
+                
+                // 拖曳事件監聽
+                el.addEventListener('dragstart', dragStart);
+                animalPool.appendChild(el);
+            });
+        }
+
+        // 拖曳邏輯
+        function dragStart(e) {
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                category: e.target.dataset.category,
+                id: e.target.innerText // 暫時用文字當唯一識別
+            }));
+            e.target.classList.add('dragging');
+        }
+
+        // 放置區域邏輯
+        const dropZones = document.querySelectorAll('.drop-zone');
+        
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', e => {
+                e.preventDefault(); // 允許放置
+                zone.classList.add('drag-over');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drag-over');
+            });
+
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+
+                // 獲取被拖曳的元素
+                const draggingEl = document.querySelector('.dragging');
+                if (!draggingEl) return;
+
+                const animalCategory = draggingEl.dataset.category;
+                const zoneCategory = zone.dataset.category;
+
+                if (animalCategory === zoneCategory) {
+                    handleCorrectDrop(draggingEl, zone);
+                } else {
+                    handleWrongDrop(draggingEl);
+                }
+                
+                draggingEl.classList.remove('dragging');
+            });
+        });
+
+        // 處理正確放置
+        function handleCorrectDrop(element, zone) {
+            zone.appendChild(element);
+            element.classList.add('correct');
+            element.setAttribute('draggable', 'false'); // 禁止再次拖曳
+            element.style.cursor = 'default';
+            
+            correctCount++;
+            scoreDisplay.innerText = correctCount;
+
+            if (correctCount === totalAnimals) {
+                showModal("恭喜勝利！🎉", "你是動物分類大師！");
+            }
+        }
+
+        // 處理錯誤放置
+        function handleWrongDrop(element) {
+            element.classList.add('shake');
+            lives--;
+            livesDisplay.innerText = lives;
+
+            // 播放音效或視覺提示後移除 shake class
+            setTimeout(() => {
+                element.classList.remove('shake');
+            }, 500);
+
+            if (lives <= 0) {
+                showModal("遊戲結束 💀", "機會用完了，再試一次吧！");
+                // 鎖定所有卡片
+                document.querySelectorAll('.animal-card').forEach(card => card.setAttribute('draggable', 'false'));
+            }
+        }
+
+        function showModal(title, msg) {
+            setTimeout(() => {
+                modalTitle.innerText = title;
+                modalMessage.innerText = msg;
+                modal.style.display = 'flex';
+            }, 300);
+        }
+
+        // 啟動
+        initGame();
+
+    </script>
+</body>
+</html>
