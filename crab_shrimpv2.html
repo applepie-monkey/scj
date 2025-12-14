@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>海洋生物特徵分類挑戰</title>
+    <style>
+        /* --- 全局設定與 iPad 優化 --- */
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none; /* 禁止預設手勢，完全由 JS 控制 */
+        }
+
+        body {
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: #f4f6f7;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 100px; /* 底部留白 */
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        /* --- 問題區塊樣式 --- */
+        .question-section {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 850px;
+            padding: 20px;
+            margin-bottom: 40px; /* 區塊間距 */
+            border-left: 10px solid #3498db; /* 裝飾線 */
+        }
+
+        .question-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        /* 根據問題改變邊框顏色 */
+        .q-style-1 { border-left-color: #e74c3c; } /* 紅色系 */
+        .q-style-2 { border-left-color: #f1c40f; } /* 黃色系 */
+        .q-style-3 { border-left-color: #8e44ad; } /* 紫色系 */
+
+        /* --- 籃子區域 --- */
+        .baskets-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .basket {
+            flex: 1;
+            background-color: #f9f9f9;
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            min-height: 200px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .basket-header {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+            width: 90%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* 籃子感應高亮 */
+        .basket.active-zone {
+            background-color: #e8f8f5;
+            border-color: #1abc9c;
+            transform: scale(1.02);
+        }
+
+        /* --- 動物池 --- */
+        .pool {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            min-height: 80px;
+        }
+
+        /* --- 可拖曳卡片 --- */
+        .draggable-item {
+            background-color: white;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #34495e;
+            cursor: grab;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        
+        /* 拖曳時的懸浮狀態 */
+        .draggable-item.dragging {
+            position: fixed;
+            z-index: 9999;
+            transform: scale(1.15) rotate(3deg);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            opacity: 0.9;
+            pointer-events: none; /* 讓事件穿透 */
+        }
+
+        /* 放入籃子後的樣式 */
+        .basket .draggable-item {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 8px;
+            border-color: transparent;
+            background-color: rgba(255,255,255,0.9);
+        }
+
+        /* --- 籃子標題顏色配置 --- */
+        /* Q1 */
+        .header-q1-yes { background-color: #e74c3c; }
+        .header-q1-no { background-color: #7f8c8d; }
+        /* Q2 */
+        .header-q2-yes { background-color: #f1c40f; color: #333; }
+        .header-q2-no { background-color: #7f8c8d; }
+        /* Q3 */
+        .header-q3-yes { background-color: #8e44ad; }
+        .header-q3-no { background-color: #7f8c8d; }
+
+        .btn-reset {
+            padding: 12px 30px;
+            background-color: #34495e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>海洋生物特徵分類</h1>
+
+    <div class="question-section q-style-1">
+        <div class="question-title">1. 誰的身體呈橢圓形？</div>
+        
+        <div class="baskets-container">
+            <div class="basket" data-group="q1">
+                <div class="basket-header header-q1-yes">身體呈橢圓形</div>
+            </div>
+            <div class="basket" data-group="q1">
+                <div class="basket-header header-q1-no">身體不呈橢圓形</div>
+            </div>
+        </div>
+
+        <div class="pool" data-group="q1">
+            <div class="draggable-item">🦀 蟹</div>
+            <div class="draggable-item">🦞 龍蝦</div>
+            <div class="draggable-item">🦐 瀨尿蝦</div>
+            <div class="draggable-item">🍤 蝦</div>
+        </div>
+    </div>
+
+    <div class="question-section q-style-2">
+        <div class="question-title">2. 誰有長觸鬚？</div>
+        
+        <div class="baskets-container">
+            <div class="basket" data-group="q2">
+                <div class="basket-header header-q2-yes">有長觸鬚</div>
+            </div>
+            <div class="basket" data-group="q2">
+                <div class="basket-header header-q2-no">沒有長觸鬚</div>
+            </div>
+        </div>
+
+        <div class="pool" data-group="q2">
+            <div class="draggable-item">🦞 龍蝦</div>
+            <div class="draggable-item">🦐 瀨尿蝦</div>
+            <div class="draggable-item">🍤 蝦</div>
+        </div>
+    </div>
+
+    <div class="question-section q-style-3">
+        <div class="question-title">3. 誰有大鉗子？</div>
+        
+        <div class="baskets-container">
+            <div class="basket" data-group="q3">
+                <div class="basket-header header-q3-yes">有大鉗子</div>
+            </div>
+            <div class="basket" data-group="q3">
+                <div class="basket-header header-q3-no">沒有大鉗子</div>
+            </div>
+        </div>
+
+        <div class="pool" data-group="q3">
+            <div class="draggable-item">🦞 龍蝦</div>
+            <div class="draggable-item">🍤 蝦</div>
+        </div>
+    </div>
+
+    <button class="btn-reset" onclick="location.reload()">全部重置</button>
+
+    <script>
+        // --- 核心變數 ---
+        const draggables = document.querySelectorAll('.draggable-item');
+        const baskets = document.querySelectorAll('.basket');
+        const pools = document.querySelectorAll('.pool');
+        const allDropZones = [...baskets, ...pools]; // 所有可以放置的地方
+
+        let currentDragItem = null;
+        let initialParent = null; 
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        // --- 初始化事件監聽 ---
+        draggables.forEach(item => {
+            // Touch Events (iPad)
+            item.addEventListener('touchstart', handleTouchStart, { passive: false });
+            item.addEventListener('touchmove', handleTouchMove, { passive: false });
+            item.addEventListener('touchend', handleTouchEnd);
+            
+            // Mouse Events (PC)
+            item.addEventListener('mousedown', handleMouseDown);
+        });
+
+        // --- 觸控邏輯 ---
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            startDrag(e.target.closest('.draggable-item'), touch.clientX, touch.clientY);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!currentDragItem) return;
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            if (!currentDragItem) return;
+            const touch = e.changedTouches[0];
+            endDrag(touch.clientX, touch.clientY);
+        }
+
+        // --- 滑鼠邏輯 ---
+        function handleMouseDown(e) {
+            e.preventDefault();
+            startDrag(e.target.closest('.draggable-item'), e.clientX, e.clientY);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function onMouseMove(e) {
+            if (!currentDragItem) return;
+            moveDrag(e.clientX, e.clientY);
+        }
+
+        function onMouseUp(e) {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            endDrag(e.clientX, e.clientY);
+        }
+
+        // --- 核心動作邏輯 ---
+
+        function startDrag(element, clientX, clientY) {
+            if(!element) return;
+            currentDragItem = element;
+            initialParent = element.parentNode;
+
+            const rect = element.getBoundingClientRect();
+            touchOffsetX = clientX - rect.left;
+            touchOffsetY = clientY - rect.top;
+
+            element.classList.add('dragging');
+            element.style.left = (clientX - touchOffsetX) + 'px';
+            element.style.top = (clientY - touchOffsetY) + 'px';
+
+            document.body.appendChild(element); // 移至頂層
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!currentDragItem) return;
+            currentDragItem.style.left = (clientX - touchOffsetX) + 'px';
+            currentDragItem.style.top = (clientY - touchOffsetY) + 'px';
+            
+            highlightZoneUnder(clientX, clientY);
+        }
+
+        function endDrag(clientX, clientY) {
+            if (!currentDragItem) return;
+
+            // 隱藏拖曳物以偵測下方元素
+            currentDragItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            currentDragItem.style.display = 'inline-flex';
+
+            let targetZone = null;
+
+            // 判斷下方是否為有效的放置區 (籃子或池子)
+            if (elemBelow) {
+                targetZone = elemBelow.closest('.basket') || elemBelow.closest('.pool');
+            }
+
+            // 清理樣式
+            currentDragItem.classList.remove('dragging');
+            currentDragItem.style.left = '';
+            currentDragItem.style.top = '';
+            allDropZones.forEach(z => z.classList.remove('active-zone'));
+
+            // --- 判斷邏輯 ---
+            // 1. 是否有目標區域
+            // 2. 目標區域的 data-group 是否與卡片的父層(題目)一致？ (防止 Q1 的蟹拉到 Q3 的籃子)
+            const itemGroup = initialParent.getAttribute('data-group') || initialParent.closest('.question-section').querySelector('.pool').getAttribute('data-group');
+            const targetGroup = targetZone ? targetZone.getAttribute('data-group') : null;
+
+            if (targetZone && itemGroup === targetGroup) {
+                targetZone.appendChild(currentDragItem);
+            } else {
+                // 放錯位置或跨區放置 -> 彈回原處
+                initialParent.appendChild(currentDragItem);
+            }
+
+            currentDragItem = null;
+            initialParent = null;
+        }
+
+        function highlightZoneUnder(x, y) {
+            currentDragItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(x, y);
+            currentDragItem.style.display = 'inline-flex';
+
+            allDropZones.forEach(z => z.classList.remove('active-zone'));
+
+            if (elemBelow) {
+                let zone = elemBelow.closest('.basket');
+                // 只有當拖曳物屬於該問題組別時，籃子才發亮
+                if (zone) {
+                    const itemGroup = initialParent.getAttribute('data-group') || initialParent.closest('.question-section').querySelector('.pool').getAttribute('data-group');
+                    if (zone.getAttribute('data-group') === itemGroup) {
+                        zone.classList.add('active-zone');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
