@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>植物分類圖填充工具 (iPad修復版)</title>
+    <style>
+        /* 防止 iPad 上長按選取文字或出現放大鏡 */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none; /* 防止瀏覽器預設的滾動行為干擾拖曳 */
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 { color: #333; margin-bottom: 10px; }
+
+        .game-container {
+            width: 100%;
+            max-width: 950px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* --- 圖表區域 --- */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 61.1%; 
+            height: 0;
+            z-index: 1;
+        }
+
+        .bg-chart {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* --- 放置區域 (Drop Zones) --- */
+        .drop-zone {
+            position: absolute;
+            background-color: #fff;
+            border: 3px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #aaa;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .drop-zone.active-zone {
+            background-color: #e3f2fd;
+            border-color: #2196F3;
+        }
+
+        /* 座標設定 (保持上次調整後的右移位置) */
+        #zone-1 { top: 18%; left: 2%; width: 28%; height: 12%; }
+        #zone-2 { top: 18%; left: 58%; width: 28%; height: 12%; }
+        #zone-3 { top: 40%; left: 35%; width: 28%; height: 12%; }
+        #zone-4 { top: 40%; left: 70%; width: 28%; height: 12%; }
+        #zone-5 { top: 68%; left: 18%; width: 28%; height: 12%; }
+        #zone-6 { top: 68%; left: 52%; width: 28%; height: 12%; }
+
+        /* --- 下半部分：選項池 --- */
+        .options-pool {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #eee;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px; /* 增加間距方便手指點擊 */
+            min-height: 100px;
+            border: 2px dashed #bbb;
+            z-index: 5;
+        }
+
+        .draggable-item {
+            background-color: #fff;
+            padding: 10px 15px; /* 加大觸控區域 */
+            border: 2px solid #555;
+            border-radius: 6px;
+            cursor: grab;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            touch-action: none; /* 關鍵：禁止瀏覽器處理觸控 */
+            position: relative; /* 預設靜態定位 */
+            z-index: 20;
+        }
+
+        /* 拖曳中的樣式 (Mobile & Desktop) */
+        .draggable-item.dragging {
+            opacity: 0.8;
+            position: fixed; /* 變成懸浮 */
+            pointer-events: none; /* 讓事件穿透去偵測下方的 drop-zone */
+            z-index: 9999;
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            margin: 0;
+            width: 160px; /* 固定寬度避免變形 */
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* 放入格子後的樣式 */
+        .drop-zone .draggable-item {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            background-color: #fff;
+            padding: 5px;
+            position: static; /* 恢復靜態 */
+            font-size: clamp(12px, 2.5vw, 16px);
+            white-space: normal;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h2>植物分類圖填充</h2>
+    <div style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">
+        提示：將下方的描述方塊拖曳到上方對應的空格中。
+    </div>
+
+    <div class="game-container">
+        <div class="chart-wrapper">
+            <svg class="bg-chart" viewBox="0 0 900 550" xmlns="http://www.w3.org/2000/svg">
+                <style>
+                    .line { stroke: #333; stroke-width: 2; fill: none; }
+                    .dashed-box { fill: none; stroke: #999; stroke-width: 2; stroke-dasharray: 5,5; rx: 10; }
+                    .box-text { font-family: "Microsoft JhengHei"; font-size: 24px; fill: #666; text-anchor: middle; dominant-baseline: middle; }
+                    .header-box { fill: #888; rx: 15; }
+                    .header-text { fill: white; font-size: 28px; font-weight: bold; text-anchor: middle; dominant-baseline: middle; }
+                </style>
+
+                <rect x="300" y="10" width="300" height="60" class="header-box" />
+                <text x="450" y="42" class="header-text">植物 W 至 Z</text>
+
+                <path d="M450 70 V85 H145 V100" class="line" /> 
+                <path d="M450 70 V85 H710 V100" class="line" />
+
+                <line x1="145" y1="166" x2="145" y2="230" class="line" />
+
+                <path d="M710 166 V190 H480 V220" class="line" />
+                <path d="M710 166 V190 H830 V220" class="line" />
+
+                <line x1="830" y1="286" x2="830" y2="340" class="line" />
+
+                <path d="M480 286 V340 H310 V374" class="line" />
+                <path d="M480 286 V340 H650 V374" class="line" />
+
+                <line x1="310" y1="440" x2="310" y2="470" class="line" />
+                <line x1="650" y1="440" x2="650" y2="470" class="line" />
+
+                <rect x="55" y="230" width="180" height="50" class="dashed-box" />
+                <text x="145" y="258" class="box-text">洋紫荊</text>
+
+                <rect x="740" y="340" width="180" height="50" class="dashed-box" />
+                <text x="830" y="368" class="box-text">大紅花</text>
+
+                <rect x="220" y="470" width="180" height="50" class="dashed-box" />
+                <text x="310" y="498" class="box-text">竹</text>
+
+                <rect x="560" y="470" width="180" height="50" class="dashed-box" />
+                <text x="650" y="498" class="box-text">細葉榕</text>
+            </svg>
+
+            <div class="drop-zone" id="zone-1" data-id="zone-1">1</div>
+            <div class="drop-zone" id="zone-2" data-id="zone-2">2</div>
+            <div class="drop-zone" id="zone-3" data-id="zone-3">3</div>
+            <div class="drop-zone" id="zone-4" data-id="zone-4">4</div>
+            <div class="drop-zone" id="zone-5" data-id="zone-5">5</div>
+            <div class="drop-zone" id="zone-6" data-id="zone-6">6</div>
+        </div>
+
+        <div class="options-pool" id="pool">
+            <div class="draggable-item">葉片的葉緣呈鋸齒狀</div>
+            <div class="draggable-item">葉片非心形</div>
+            <div class="draggable-item">葉片有網狀脈</div>
+            <div class="draggable-item">葉片的葉緣平滑</div>
+            <div class="draggable-item">葉片有平行脈</div>
+            <div class="draggable-item">葉片呈心形</div>
+        </div>
+    </div>
+
+    <script>
+        // 獲取所有元素
+        const draggables = document.querySelectorAll('.draggable-item');
+        const dropZones = document.querySelectorAll('.drop-zone');
+        const pool = document.getElementById('pool');
+
+        // 用於記錄當前拖曳的狀態
+        let currentDragItem = null;
+        let initialParent = null;
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        // --- 通用拖曳邏輯 (Touch & Mouse) ---
+        draggables.forEach(item => {
+            // 觸控事件 (iPad/Mobile)
+            item.addEventListener('touchstart', handleTouchStart, { passive: false });
+            item.addEventListener('touchmove', handleTouchMove, { passive: false });
+            item.addEventListener('touchend', handleTouchEnd);
+            
+            // 滑鼠事件 (Desktop)
+            item.addEventListener('mousedown', handleMouseDown);
+        });
+
+        // --- 觸控事件處理 (Touch Logic) ---
+        function handleTouchStart(e) {
+            e.preventDefault(); // 防止滾動
+            const touch = e.touches[0];
+            startDrag(e.target, touch.clientX, touch.clientY);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!currentDragItem) return;
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            if (!currentDragItem) return;
+            const touch = e.changedTouches[0];
+            endDrag(touch.clientX, touch.clientY);
+        }
+
+        // --- 滑鼠事件處理 (Mouse Logic) ---
+        function handleMouseDown(e) {
+            e.preventDefault();
+            startDrag(e.target, e.clientX, e.clientY);
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function onMouseMove(e) {
+            if (!currentDragItem) return;
+            moveDrag(e.clientX, e.clientY);
+        }
+
+        function onMouseUp(e) {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            endDrag(e.clientX, e.clientY);
+        }
+
+        // --- 核心邏輯函數 ---
+
+        function startDrag(element, clientX, clientY) {
+            currentDragItem = element;
+            initialParent = element.parentNode;
+            
+            // 計算手指點擊位置與元素中心的偏移
+            const rect = element.getBoundingClientRect();
+            touchOffsetX = clientX - rect.left;
+            touchOffsetY = clientY - rect.top;
+
+            // 設置樣式：變成懸浮狀態
+            element.classList.add('dragging');
+            element.style.left = (clientX - rect.width / 2) + 'px';
+            element.style.top = (clientY - rect.height / 2) + 'px';
+            
+            // 將元素暫時移到 body 尾部，確保它浮在最上層
+            document.body.appendChild(element);
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!currentDragItem) return;
+            
+            // 跟隨手指移動
+            // 這裡簡單地將元素中心對齊手指
+            const rect = currentDragItem.getBoundingClientRect();
+            currentDragItem.style.left = (clientX - rect.width / 2) + 'px';
+            currentDragItem.style.top = (clientY - rect.height / 2) + 'px';
+
+            // 高亮下方的 DropZone
+            highlightZoneUnder(clientX, clientY);
+        }
+
+        function endDrag(clientX, clientY) {
+            if (!currentDragItem) return;
+
+            // 隱藏拖曳物以便偵測下方的元素
+            currentDragItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            currentDragItem.style.display = 'flex'; // 恢復顯示
+
+            // 尋找最近的 Drop Zone
+            let dropZone = elemBelow ? elemBelow.closest('.drop-zone') : null;
+            let poolZone = elemBelow ? elemBelow.closest('.options-pool') : null;
+
+            // 清除所有高亮
+            dropZones.forEach(z => z.classList.remove('active-zone'));
+            currentDragItem.classList.remove('dragging');
+            currentDragItem.style.left = '';
+            currentDragItem.style.top = '';
+            currentDragItem.style.position = ''; // 恢復原本定位
+            currentDragItem.style.width = '';
+
+            if (dropZone) {
+                // 如果目標是格子
+                handleDrop(currentDragItem, dropZone);
+            } else if (poolZone) {
+                // 如果目標是選項池
+                pool.appendChild(currentDragItem);
+            } else {
+                // 如果放錯地方，彈回原處
+                initialParent.appendChild(currentDragItem);
+            }
+
+            currentDragItem = null;
+            initialParent = null;
+        }
+
+        function handleDrop(item, zone) {
+            // 如果格子裡已經有東西，把舊的擠回 Pool
+            const existingItem = zone.querySelector('.draggable-item');
+            if (existingItem && existingItem !== item) {
+                pool.appendChild(existingItem);
+            }
+            zone.appendChild(item);
+        }
+
+        function highlightZoneUnder(x, y) {
+            // 暫時隱藏以偵測下方
+            currentDragItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(x, y);
+            currentDragItem.style.display = 'flex';
+
+            dropZones.forEach(z => z.classList.remove('active-zone'));
+
+            if (elemBelow) {
+                let zone = elemBelow.closest('.drop-zone');
+                if (zone) {
+                    zone.classList.add('active-zone');
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
