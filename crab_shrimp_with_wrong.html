@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>海洋生物分類挑戰</title>
+    <style>
+        /* 基本設定：防止 iPad 上的彈性滾動影響拖曳體驗 */
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: #e0f7fa;
+            margin: 0;
+            padding: 20px;
+            touch-action: pan-y; /* 允許垂直滾動，但禁止水平手勢干擾 */
+            -webkit-user-select: none; /* 禁止選取文字 */
+            user-select: none;
+        }
+
+        h1 {
+            text-align: center;
+            color: #006064;
+        }
+
+        /* 每一題的區塊 */
+        .question-section {
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .question-title {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+            border-left: 5px solid #00acc1;
+            padding-left: 10px;
+        }
+
+        /* 動物出發區 */
+        .source-area {
+            background-color: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            min-height: 100px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* 籃子區域 */
+        .baskets-wrapper {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .basket {
+            flex: 1;
+            background-color: #fff9c4;
+            border: 3px solid #fbc02d;
+            border-radius: 10px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .basket h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            text-align: center;
+            color: #ef6c00;
+        }
+
+        .basket-content {
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+        }
+
+        /* 動物卡片樣式 */
+        .animal {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin: 5px;
+            cursor: grab;
+            touch-action: none; /* 關鍵：禁止瀏覽器處理此元素的觸控，交給 JS */
+            position: relative; /* 為了讓 JS 控制絕對位置 */
+            z-index: 10;
+        }
+
+        .animal span.emoji {
+            font-size: 40px;
+            line-height: 1;
+        }
+
+        .animal span.name {
+            font-size: 12px;
+            color: #555;
+            margin-top: 2px;
+        }
+
+        /* 拖曳中的樣式 */
+        .dragging {
+            opacity: 0.8;
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            z-index: 9999;
+            position: fixed; /* 拖曳時變成固定定位，脫離文檔流 */
+            pointer-events: none; /* 讓下方的元素能被偵測到 (雖然後面用 JS 計算座標，但這也是好習慣) */
+        }
+        
+        /* 佔位符，當元素被拖走時留在原地的隱形框，防止排版跳動 */
+        .placeholder {
+            width: 80px;
+            height: 80px;
+            margin: 5px;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.05);
+            border: 2px dashed #ddd;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>🦀 海洋生物分類遊戲 🦐</h1>
+    <p style="text-align: center; color: #666;">請用手指將動物拖到正確的籃子裡</p>
+
+    <div class="question-section">
+        <div class="question-title">1. 誰的身體呈橢圓形？</div>
+        <div class="source-area" id="source-1">
+            <div class="animal" data-id="crab"><span class="emoji">🦀</span><span class="name">蟹</span></div>
+            <div class="animal" data-id="lobster"><span class="emoji">🦞</span><span class="name">龍蝦</span></div>
+            <div class="animal" data-id="mantis"><span class="emoji">🦐</span><span class="name">瀨尿蝦</span></div>
+            <div class="animal" data-id="shrimp"><span class="emoji">🦐</span><span class="name">蝦</span></div>
+        </div>
+        <div class="baskets-wrapper">
+            <div class="basket">
+                <h3>籃子1：身體呈橢圓形</h3>
+                <div class="basket-content" id="basket-1"></div>
+            </div>
+            <div class="basket">
+                <h3>籃子2：身體不呈橢圓形</h3>
+                <div class="basket-content" id="basket-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-section">
+        <div class="question-title">2. 誰有長觸鬚？</div>
+        <div class="source-area" id="source-2">
+            <div class="animal" data-id="lobster"><span class="emoji">🦞</span><span class="name">龍蝦</span></div>
+            <div class="animal" data-id="mantis"><span class="emoji">🦐</span><span class="name">瀨尿蝦</span></div>
+            <div class="animal" data-id="shrimp"><span class="emoji">🦐</span><span class="name">蝦</span></div>
+        </div>
+        <div class="baskets-wrapper">
+            <div class="basket">
+                <h3>籃子3：有長觸鬚</h3>
+                <div class="basket-content" id="basket-3"></div>
+            </div>
+            <div class="basket">
+                <h3>籃子4：沒有長觸鬚</h3>
+                <div class="basket-content" id="basket-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-section">
+        <div class="question-title">3. 誰有大鉗子？</div>
+        <div class="source-area" id="source-3">
+            <div class="animal" data-id="lobster"><span class="emoji">🦞</span><span class="name">龍蝦</span></div>
+            <div class="animal" data-id="shrimp"><span class="emoji">🦐</span><span class="name">蝦</span></div>
+        </div>
+        <div class="baskets-wrapper">
+            <div class="basket">
+                <h3>籃子5：有大鉗子</h3>
+                <div class="basket-content" id="basket-5"></div>
+            </div>
+            <div class="basket">
+                <h3>籃子6：沒有大鉗子</h3>
+                <div class="basket-content" id="basket-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-section">
+        <div class="question-title">4. 誰有尾巴？</div>
+        <div class="source-area" id="source-4">
+            <div class="animal" data-id="crab"><span class="emoji">🦀</span><span class="name">蟹</span></div>
+            <div class="animal" data-id="lobster"><span class="emoji">🦞</span><span class="name">龍蝦</span></div>
+            <div class="animal" data-id="mantis"><span class="emoji">🦐</span><span class="name">瀨尿蝦</span></div>
+            <div class="animal" data-id="shrimp"><span class="emoji">🦐</span><span class="name">蝦</span></div>
+        </div>
+        <div class="baskets-wrapper">
+            <div class="basket">
+                <h3>籃子7：有尾巴</h3>
+                <div class="basket-content" id="basket-7"></div>
+            </div>
+            <div class="basket">
+                <h3>籃子8：沒有尾巴</h3>
+                <div class="basket-content" id="basket-8"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-section">
+        <div class="question-title">5. 誰體型是小的？</div>
+        <div class="source-area" id="source-5">
+            <div class="animal" data-id="crab"><span class="emoji">🦀</span><span class="name">蟹</span></div>
+            <div class="animal" data-id="lobster"><span class="emoji">🦞</span><span class="name">龍蝦</span></div>
+            <div class="animal" data-id="mantis"><span class="emoji">🦐</span><span class="name">瀨尿蝦</span></div>
+            <div class="animal" data-id="shrimp"><span class="emoji">🦐</span><span class="name">蝦</span></div>
+        </div>
+        <div class="baskets-wrapper">
+            <div class="basket">
+                <h3>籃子9：體型是小的</h3>
+                <div class="basket-content" id="basket-9"></div>
+            </div>
+            <div class="basket">
+                <h3>籃子10：體型是大的</h3>
+                <div class="basket-content" id="basket-10"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 取得所有動物元素
+        const animals = document.querySelectorAll('.animal');
+        
+        let activeItem = null;
+        let activePlaceholder = null;
+        let initialParent = null;
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        // 為每個動物綁定觸控事件
+        animals.forEach(item => {
+            // 支援觸控螢幕 (iPad)
+            item.addEventListener('touchstart', handleStart, {passive: false});
+            item.addEventListener('touchmove', handleMove, {passive: false});
+            item.addEventListener('touchend', handleEnd);
+            
+            // 支援滑鼠 (電腦測試用)
+            item.addEventListener('mousedown', handleStart);
+        });
+
+        function handleStart(e) {
+            e.preventDefault(); // 防止滾動
+            const touch = e.touches ? e.touches[0] : e;
+            const target = e.target.closest('.animal');
+
+            if (!target) return;
+
+            activeItem = target;
+            initialParent = activeItem.parentNode;
+
+            // 創建一個佔位符留在原地
+            activePlaceholder = document.createElement('div');
+            activePlaceholder.className = 'placeholder';
+            initialParent.insertBefore(activePlaceholder, activeItem);
+
+            // 計算點擊點與元素左上角的偏移
+            const rect = activeItem.getBoundingClientRect();
+            touchOffsetX = touch.clientX - rect.left;
+            touchOffsetY = touch.clientY - rect.top;
+
+            // 設定拖曳樣式
+            activeItem.classList.add('dragging');
+            activeItem.style.left = (touch.clientX - touchOffsetX) + 'px';
+            activeItem.style.top = (touch.clientY - touchOffsetY) + 'px';
+            
+            // 將元素移到 Body 尾端以確保它浮在最上層
+            document.body.appendChild(activeItem);
+
+            if (!e.touches) { // 如果是滑鼠，需要額外綁定移動事件
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', handleEnd);
+            }
+        }
+
+        function handleMove(e) {
+            if (!activeItem) return;
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+
+            // 更新位置
+            activeItem.style.left = (touch.clientX - touchOffsetX) + 'px';
+            activeItem.style.top = (touch.clientY - touchOffsetY) + 'px';
+        }
+
+        function handleEnd(e) {
+            if (!activeItem) return;
+            
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            
+            // 隱藏拖曳物以便偵測下方的元素 (elementFromPoint)
+            activeItem.style.display = 'none';
+            const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            activeItem.style.display = 'flex';
+
+            // 尋找是否落在籃子區域內
+            const droppableBasket = elemBelow ? elemBelow.closest('.basket-content') : null;
+            const sourceArea = elemBelow ? elemBelow.closest('.source-area') : null;
+
+            // 邏輯：
+            // 1. 如果落在籃子裡 -> 放入籃子
+            // 2. 如果落在出發區 -> 放回出發區
+            // 3. 如果亂丟 -> 放回原來的地方 (無論是籃子還是出發區)
+            
+            if (droppableBasket) {
+                droppableBasket.appendChild(activeItem);
+            } else if (sourceArea) {
+                sourceArea.appendChild(activeItem);
+            } else {
+                // 放回原本的位置 (用佔位符找位置)
+                if (activePlaceholder && activePlaceholder.parentNode) {
+                    activePlaceholder.parentNode.insertBefore(activeItem, activePlaceholder);
+                } else {
+                    initialParent.appendChild(activeItem);
+                }
+            }
+
+            // 清理樣式
+            activeItem.classList.remove('dragging');
+            activeItem.style.position = '';
+            activeItem.style.left = '';
+            activeItem.style.top = '';
+            activeItem.style.zIndex = '';
+            
+            // 移除佔位符
+            if (activePlaceholder && activePlaceholder.parentNode) {
+                activePlaceholder.parentNode.removeChild(activePlaceholder);
+            }
+
+            // 清理變數與事件
+            activeItem = null;
+            activePlaceholder = null;
+            initialParent = null;
+            
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+        }
+    </script>
+</body>
+</html>
