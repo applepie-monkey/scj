@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>魚類特徵分類</title>
+    <style>
+        /* --- 全局設定 --- */
+        body {
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            background-color: #e0f7fa;
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto; 
+            touch-action: pan-y; 
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        h1 {
+            text-align: center;
+            color: #006064;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        /* --- 問題區塊容器 --- */
+        .question-container {
+            background-color: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 50px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            border: 1px solid #b2ebf2;
+        }
+
+        .question-title {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #00838f;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #e0f7fa;
+        }
+
+        /* --- 魚的來源區 (Source) --- */
+        .fish-source {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            background-color: #fafafa;
+            border-radius: 15px;
+            min-height: 100px;
+            margin-bottom: 25px;
+            border: 3px dashed #ccc;
+        }
+
+        /* --- 魚的卡片 (初始狀態) --- */
+        .fish-card {
+            background-color: #4dd0e1;
+            color: white;
+            font-weight: bold;
+            font-size: 1.5rem; /* 來源區維持適中大小 */
+            padding: 15px 25px;
+            border-radius: 15px;
+            cursor: grab;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            touch-action: none; 
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fish-card:active {
+            cursor: grabbing;
+        }
+
+        /* 拖動時的特效 */
+        .dragging {
+            opacity: 0.9;
+            transform: scale(1.1) !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            z-index: 1000;
+            background-color: #00acc1;
+        }
+
+        /* --- 籃子區域 (Baskets) --- */
+        .baskets-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .basket {
+            flex: 1;
+            background-color: #fffde7;
+            border: 4px dashed #fbc02d;
+            border-radius: 15px;
+            min-height: 250px; /* 籃子高度足夠容納內容 */
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 籃子標題 */
+        .basket-label {
+            font-weight: bold;
+            color: #f57f17;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 80%;
+            
+            /* --- 修改：字體放大至 1.8rem --- */
+            font-size: 1.8rem; 
+        }
+
+        .basket-content {
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            gap: 10px;
+        }
+
+        /* --- 放入籃子後的魚卡片 --- */
+        .basket .fish-card {
+            background-color: #26c6da;
+            
+            /* --- 修改：字體調整為 1.8rem (與籃子標題一致) --- */
+            font-size: 1.8rem; 
+            
+            padding: 15px 10px;
+            width: 90%; 
+            box-shadow: none;
+            border: 2px solid #00acc1;
+            margin-bottom: 8px;
+            border-radius: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>魚類特徵分類活動</h1>
+    <p style="text-align: center; color: #666; font-size: 1.2rem;">請用手指將魚的名字拖曳到符合特徵的籃子裡。</p>
+
+    <div class="question-container">
+        <div class="question-title">問題 1：誰有長鰭？</div>
+        
+        <div class="fish-source">
+            <div class="fish-card">甲尻魚</div>
+            <div class="fish-card">單斑蝴蝶魚</div>
+            <div class="fish-card">關刀</div>
+            <div class="fish-card">黃三角吊</div>
+        </div>
+
+        <div class="baskets-row">
+            <div class="basket">
+                <div class="basket-label">有長鰭</div>
+                <div class="basket-content"></div>
+            </div>
+            <div class="basket">
+                <div class="basket-label">沒有長鰭</div>
+                <div class="basket-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-container">
+        <div class="question-title">問題 2：誰身上有黑色斑點？</div>
+        
+        <div class="fish-source">
+            <div class="fish-card">甲尻魚</div>
+            <div class="fish-card">單斑蝴蝶魚</div>
+            <div class="fish-card">黃三角吊</div>
+        </div>
+
+        <div class="baskets-row">
+            <div class="basket">
+                <div class="basket-label">有黑色斑點</div>
+                <div class="basket-content"></div>
+            </div>
+            <div class="basket">
+                <div class="basket-label">沒有黑色斑點</div>
+                <div class="basket-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-container">
+        <div class="question-title">問題 3：誰身上有條紋？(第一組)</div>
+        
+        <div class="fish-source">
+            <div class="fish-card">甲尻魚</div>
+            <div class="fish-card">黃三角吊</div>
+        </div>
+
+        <div class="baskets-row">
+            <div class="basket">
+                <div class="basket-label">身上有條紋</div>
+                <div class="basket-content"></div>
+            </div>
+            <div class="basket">
+                <div class="basket-label">身上沒有條紋</div>
+                <div class="basket-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="question-container">
+        <div class="question-title">問題 4：誰身上有條紋？(第二組)</div>
+        
+        <div class="fish-source">
+            <div class="fish-card">甲尻魚</div>
+            <div class="fish-card">單斑蝴蝶魚</div>
+            <div class="fish-card">關刀</div>
+            <div class="fish-card">黃三角吊</div>
+        </div>
+
+        <div class="baskets-row">
+            <div class="basket">
+                <div class="basket-label">身上有條紋</div>
+                <div class="basket-content"></div>
+            </div>
+            <div class="basket">
+                <div class="basket-label">身上沒有條紋</div>
+                <div class="basket-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const draggables = document.querySelectorAll('.fish-card');
+        
+        let activeItem = null;
+        let initialX = 0;
+        let initialY = 0;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', dragStart, {passive: false});
+            item.addEventListener('touchend', dragEnd, {passive: false});
+            item.addEventListener('touchmove', drag, {passive: false});
+            item.addEventListener('mousedown', dragStart);
+        });
+
+        function dragStart(e) {
+            if (e.type === "touchstart") {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', dragEnd);
+            }
+
+            if (e.target.closest('.fish-card')) {
+                activeItem = e.target.closest('.fish-card');
+                activeItem.classList.add('dragging');
+            }
+        }
+
+        function drag(e) {
+            if (activeItem) {
+                e.preventDefault();
+
+                let clientX, clientY;
+                if (e.type === "touchmove") {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                let currentX = clientX - initialX;
+                let currentY = clientY - initialY;
+
+                setTranslate(currentX, currentY, activeItem);
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        function dragEnd(e) {
+            if (!activeItem) return;
+
+            let clientX, clientY;
+            if (e.type === "touchend") {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', dragEnd);
+            }
+
+            activeItem.classList.remove('dragging');
+
+            activeItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            activeItem.style.display = 'flex';
+
+            if (elemBelow) {
+                let basket = elemBelow.closest('.basket');
+                let source = elemBelow.closest('.fish-source');
+                let currentQuestion = activeItem.closest('.question-container');
+                let targetContainer = elemBelow.closest('.question-container');
+
+                if (targetContainer === currentQuestion) {
+                    if (basket) {
+                        const contentArea = basket.querySelector('.basket-content');
+                        contentArea.appendChild(activeItem);
+                    } else if (source) {
+                        source.appendChild(activeItem);
+                    }
+                }
+            }
+
+            activeItem.style.transform = "none";
+            initialX = 0;
+            initialY = 0;
+            xOffset = 0;
+            yOffset = 0;
+            activeItem = null;
+        }
+    </script>
+</body>
+</html>
