@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>動物特徵分類</title>
+    <style>
+        /* 全局設定 */
+        body {
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+            /* 確保右側有滑條，當內容多時 */
+            overflow-y: auto; 
+            touch-action: pan-y; 
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        /* --- 上半部分：籃子區域 (3x3 Grid) --- */
+        .baskets-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3列 */
+            gap: 15px;
+            margin-bottom: 40px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .basket {
+            background-color: #e3f2fd;
+            border: 2px dashed #64b5f6;
+            border-radius: 10px;
+            min-height: 140px; /* 籃子高度 */
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .basket-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #1565c0;
+            text-align: center;
+            background-color: rgba(255,255,255,0.7);
+            padding: 5px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            pointer-events: none; /* 防止誤觸文字 */
+        }
+
+        .basket-content {
+            flex-grow: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            gap: 5px;
+        }
+
+        /* --- 下半部分：動物來源區域 --- */
+        .source-area-title {
+            text-align: center;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .animals-source {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 15px;
+            min-height: 150px;
+            border: 2px solid #ddd;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* --- 動物卡片樣式 --- */
+        .animal-card {
+            width: 70px;
+            height: 85px;
+            background-color: #fff;
+            border: 2px solid #ff9800; /* 使用橙色邊框區分 */
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            user-select: none;
+            touch-action: none; /* 關鍵：防止拖動時畫面滾動 */
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .animal-emoji {
+            font-size: 35px;
+            pointer-events: none;
+            line-height: 1.2;
+        }
+
+        .animal-name {
+            font-size: 12px;
+            color: #333;
+            pointer-events: none;
+            margin-top: 2px;
+            text-align: center;
+            display: block; /* 確保放入籃子後文字仍顯示 */
+        }
+
+        /* 拖動時的特效 */
+        .dragging {
+            opacity: 0.8;
+            transform: scale(1.1);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            border-color: #f57c00;
+        }
+
+        /* 放入籃子後的微調（適應籃子空間） */
+        .basket .animal-card {
+            width: 55px;
+            height: 70px;
+            border: 1px solid #999;
+        }
+        .basket .animal-emoji {
+            font-size: 25px;
+        }
+        .basket .animal-name {
+            font-size: 10px;
+            transform: scale(0.9); /* 文字稍微縮小 */
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>動物特徵分類</h1>
+    <p style="text-align: center; color: #666; font-size: 0.9rem;">請將下方的動物拖曳至符合特徵的籃子中（無需判斷對錯）。</p>
+
+    <div class="baskets-wrapper">
+        <div class="basket"><div class="basket-title">有濕滑的鱗片</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">鰭</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">有濕潤的皮膚</div><div class="basket-content"></div></div>
+        
+        <div class="basket"><div class="basket-title">有乾硬的鱗片</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">有羽毛</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">有翅膀</div><div class="basket-content"></div></div>
+        
+        <div class="basket"><div class="basket-title">有喙</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">有毛髮</div><div class="basket-content"></div></div>
+        <div class="basket"><div class="basket-title">乳腺</div><div class="basket-content"></div></div>
+    </div>
+
+    <div class="source-area-title">待分類動物</div>
+    <div class="animals-source" id="source-area">
+        <div class="animal-card"><span class="animal-emoji">🦭</span><span class="animal-name">海豹</span></div>
+        <div class="animal-card"><span class="animal-emoji">🦭</span><span class="animal-name">海豹</span></div>
+        
+        <div class="animal-card"><span class="animal-emoji">🦉</span><span class="animal-name">貓頭鷹</span></div>
+        <div class="animal-card"><span class="animal-emoji">🦉</span><span class="animal-name">貓頭鷹</span></div>
+        <div class="animal-card"><span class="animal-emoji">🦉</span><span class="animal-name">貓頭鷹</span></div>
+
+        <div class="animal-card"><span class="animal-emoji">🐍</span><span class="animal-name">蛇</span></div>
+        <div class="animal-card"><span class="animal-emoji">🐍</span><span class="animal-name">蛇</span></div>
+
+        <div class="animal-card"><span class="animal-emoji">🐸</span><span class="animal-name">蟾蜍</span></div>
+        <div class="animal-card"><span class="animal-emoji">🐸</span><span class="animal-name">蟾蜍</span></div>
+
+        <div class="animal-card"><span class="animal-emoji">🐟</span><span class="animal-name">鯉魚</span></div>
+        <div class="animal-card"><span class="animal-emoji">🐟</span><span class="animal-name">鯉魚</span></div>
+    </div>
+
+    <script>
+        const draggables = document.querySelectorAll('.animal-card');
+        
+        let activeItem = null;
+        let initialX = 0;
+        let initialY = 0;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        // 為所有動物卡片添加事件監聽
+        draggables.forEach(item => {
+            // 觸控事件 (iPad/手機)
+            item.addEventListener('touchstart', dragStart, {passive: false});
+            item.addEventListener('touchend', dragEnd, {passive: false});
+            item.addEventListener('touchmove', drag, {passive: false});
+
+            // 滑鼠事件 (電腦測試)
+            item.addEventListener('mousedown', dragStart);
+        });
+
+        function dragStart(e) {
+            if (e.type === "touchstart") {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', dragEnd);
+            }
+
+            if (e.target.closest('.animal-card')) {
+                activeItem = e.target.closest('.animal-card');
+                activeItem.classList.add('dragging');
+            }
+        }
+
+        function drag(e) {
+            if (activeItem) {
+                e.preventDefault(); // 防止畫面滾動
+
+                let clientX, clientY;
+                if (e.type === "touchmove") {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                let currentX = clientX - initialX;
+                let currentY = clientY - initialY;
+
+                setTranslate(currentX, currentY, activeItem);
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+        }
+
+        function dragEnd(e) {
+            if (!activeItem) return;
+
+            let clientX, clientY;
+            if (e.type === "touchend") {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', dragEnd);
+            }
+
+            activeItem.classList.remove('dragging');
+
+            // 暫時隱藏以獲取下方的元素
+            activeItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            activeItem.style.display = 'flex';
+
+            if (elemBelow) {
+                // 檢查是否拖到了籃子
+                let basket = elemBelow.closest('.basket');
+                
+                if (basket) {
+                    const contentArea = basket.querySelector('.basket-content');
+                    contentArea.appendChild(activeItem);
+                } else {
+                    // 檢查是否拖回了來源區 (如果玩家想放回去)
+                    let sourceArea = elemBelow.closest('.animals-source');
+                    if (sourceArea) {
+                        sourceArea.appendChild(activeItem);
+                    }
+                }
+            }
+
+            // 重置位置偏移，因為元素已經移動到新的 DOM 父節點中了
+            activeItem.style.transform = "none";
+            initialX = 0;
+            initialY = 0;
+            activeItem = null;
+        }
+    </script>
+</body>
+</html>
