@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>甲殼類動物檢索表</title>
+    <style>
+        /* --- 全局設定 --- */
+        body {
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 10px;
+            overflow-y: auto; 
+            touch-action: pan-y; 
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin: 5px 0;
+            font-size: 1.5rem;
+        }
+
+        /* --- 樹狀結構 CSS --- */
+        .tree {
+            width: 100%;
+            min-width: 768px; /* 確保結構不跑版 */
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px; /* 緊貼下方選項區 */
+            padding-top: 10px;
+        }
+
+        .tree ul {
+            padding-top: 20px; 
+            position: relative;
+            transition: all 0.5s;
+            display: flex;
+            justify-content: center;
+            padding-left: 0;
+        }
+
+        .tree li {
+            float: left; text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 20px 5px 0 5px;
+            transition: all 0.5s;
+        }
+
+        /* --- 繪製連接線 --- */
+        .tree li::before, .tree li::after {
+            content: '';
+            position: absolute; top: 0; right: 50%;
+            border-top: 2px solid #999;
+            width: 50%; height: 20px;
+        }
+        .tree li::after {
+            right: auto; left: 50%;
+            border-left: 2px solid #999;
+        }
+        .tree li:only-child::after, .tree li:only-child::before {
+            display: none;
+        }
+        .tree li:only-child { padding-top: 0; }
+        .tree li:first-child::before, .tree li:last-child::after {
+            border: 0 none;
+        }
+        .tree li:last-child::before{
+            border-right: 2px solid #999;
+            border-radius: 0 5px 0 0;
+        }
+        .tree li:first-child::after{
+            border-radius: 5px 0 0 0;
+        }
+        .tree ul ul::before{
+            content: '';
+            position: absolute; top: 0; left: 50%;
+            border-left: 2px solid #999;
+            width: 0; height: 20px;
+        }
+
+        /* --- 檢索表方格 (Drop Zone) --- */
+        .node-content {
+            background-color: white;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            display: inline-block;
+            width: 140px; 
+            height: 90px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            vertical-align: top;
+            z-index: 2;
+        }
+
+        /* 根節點 A-D */
+        .root-label {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            font-weight: bold;
+            padding: 5px 15px;
+            background: #fff;
+            border: 2px dashed #e74c3c;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* 數字標籤 */
+        .number-badge {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 24px;
+            height: 24px;
+            background-color: #2980b9;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 5;
+        }
+
+        .drop-area {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- 來源區 (Draggable Items) --- */
+        .source-container {
+            width: 95%;
+            background-color: white;
+            border: 2px dashed #bdc3c7;
+            border-radius: 15px;
+            padding: 10px;
+            margin-top: 0px; 
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .source-title {
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        /* --- 綠色文字方塊 (來源狀態) --- */
+        .drag-item {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            text-align: center;
+            
+            /* 寬度隨字數調整 */
+            width: fit-content; 
+            min-width: auto;
+            white-space: nowrap; 
+        }
+
+        .drag-item:active {
+            cursor: grabbing;
+        }
+
+        /* 拖動中的樣式 */
+        .dragging {
+            position: fixed; 
+            opacity: 0.8;
+            transform: scale(1.1);
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* --- 放入方格後的樣式 (填滿) --- */
+        .node-content .drag-item {
+            background-color: #2ecc71;
+            border-radius: 4px;
+            
+            /* 填滿容器 */
+            width: 100%;
+            height: 100%;
+            
+            /* 字體放大 */
+            font-size: 1.3rem; /* 稍微調整以容納較長的描述文字 */
+            line-height: 1.2;
+            
+            /* 內容置中 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            padding: 2px;
+            white-space: normal; /* 允許長文字換行 */
+            box-shadow: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>甲殼類動物檢索表</h1>
+
+    <div class="tree">
+        <ul>
+            <li>
+                <div class="root-label">A - D</div>
+                
+                <ul>
+                    <li>
+                        <div class="node-content">
+                            <div class="number-badge">1</div>
+                            <div class="drop-area"></div>
+                        </div>
+                        <ul>
+                            <li>
+                                <div class="node-content">
+                                    <div class="number-badge">3</div>
+                                    <div class="drop-area"></div>
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <div class="node-content">
+                            <div class="number-badge">2</div>
+                            <div class="drop-area"></div>
+                        </div>
+                        <ul>
+                            <li>
+                                <div class="node-content">
+                                    <div class="number-badge">4</div>
+                                    <div class="drop-area"></div>
+                                </div>
+                                <ul>
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">6</div>
+                                            <div class="drop-area"></div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <li>
+                                <div class="node-content">
+                                    <div class="number-badge">5</div>
+                                    <div class="drop-area"></div>
+                                </div>
+                                <ul>
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">7</div>
+                                            <div class="drop-area"></div>
+                                        </div>
+                                        <ul>
+                                            <li>
+                                                <div class="node-content">
+                                                    <div class="number-badge">9</div>
+                                                    <div class="drop-area"></div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </li>
+
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">8</div>
+                                            <div class="drop-area"></div>
+                                        </div>
+                                        <ul>
+                                            <li>
+                                                <div class="node-content">
+                                                    <div class="number-badge">10</div>
+                                                    <div class="drop-area"></div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="source-container" id="source-zone">
+        <div class="source-title">選項區 (請拖曳)</div>
+        
+        <div class="drag-item">身體呈橢圓形</div>
+        <div class="drag-item">身體不呈橢圓形</div>
+        <div class="drag-item">有長觸鬚</div>
+        <div class="drag-item">沒有長觸鬚</div>
+        <div class="drag-item">有尾巴</div>
+        <div class="drag-item">沒有尾巴</div>
+        
+        <div class="drag-item">蟹</div>
+        <div class="drag-item">龍蝦</div>
+        <div class="drag-item">瀨尿蝦</div>
+        <div class="drag-item">蝦</div>
+    </div>
+
+    <script>
+        const draggables = document.querySelectorAll('.drag-item');
+        let currentDragItem = null;
+        let cloneItem = null;
+        let initialX, initialY, offsetX, offsetY;
+
+        // 為所有可拖動項目添加監聽器
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('mousedown', handleMouseDown);
+        });
+
+        // --- 觸控事件處理 (iPad) ---
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            startDrag(e.target, touch.clientX, touch.clientY);
+            
+            document.addEventListener('touchmove', handleTouchMove, {passive: false});
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            const touch = e.changedTouches[0];
+            endDrag(touch.clientX, touch.clientY);
+            
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        }
+
+        // --- 滑鼠事件處理 ---
+        function handleMouseDown(e) {
+            e.preventDefault();
+            startDrag(e.target, e.clientX, e.clientY);
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function handleMouseMove(e) {
+            e.preventDefault();
+            moveDrag(e.clientX, e.clientY);
+        }
+
+        function handleMouseUp(e) {
+            endDrag(e.clientX, e.clientY);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        // --- 核心拖曳邏輯 ---
+        function startDrag(target, clientX, clientY) {
+            currentDragItem = target;
+            
+            cloneItem = currentDragItem.cloneNode(true);
+            cloneItem.classList.add('dragging');
+            // 保持複製出來的拖曳物體大小與原物一致
+            cloneItem.style.width = currentDragItem.offsetWidth + 'px'; 
+            cloneItem.style.height = currentDragItem.offsetHeight + 'px';
+            
+            document.body.appendChild(cloneItem);
+
+            const rect = currentDragItem.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+
+            currentDragItem.style.opacity = '0.3';
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!cloneItem) return;
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+        }
+
+        function endDrag(clientX, clientY) {
+            if (!currentDragItem || !cloneItem) return;
+
+            cloneItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            cloneItem.remove();
+            cloneItem = null;
+
+            currentDragItem.style.opacity = '1';
+
+            if (elemBelow) {
+                let dropZone = elemBelow.closest('.drop-area');
+                let sourceZone = elemBelow.closest('#source-zone');
+
+                if (dropZone) {
+                    // 如果方格內已經有東西，先把它移回來源區
+                    if (dropZone.children.length > 0) {
+                        const existingItem = dropZone.children[0];
+                        document.getElementById('source-zone').appendChild(existingItem);
+                    }
+                    dropZone.appendChild(currentDragItem);
+                } else if (sourceZone) {
+                    sourceZone.appendChild(currentDragItem);
+                }
+            }
+            
+            currentDragItem = null;
+        }
+    </script>
+</body>
+</html>
