@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化學實驗模擬：中和反應與溶解熱</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        /* SVG 容器 */
+        .svg-container {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* 按鈕樣式 (SVG 內的 class) */
+        .btn {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .btn rect {
+            fill: #4CAF50;
+            stroke: #388E3C;
+            stroke-width: 2;
+            rx: 5; 
+            ry: 5;
+        }
+        .btn text {
+            fill: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+        .btn-reset rect {
+            fill: #f44336;
+            stroke: #d32f2f;
+        }
+
+        /* 離子文字樣式 */
+        .ion {
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            transition: all 1s ease;
+        }
+        .ion-h { fill: #d32f2f; } /* H+ 紅色 */
+        .ion-cl { fill: #388E3C; } /* Cl- 綠色 */
+        .ion-na { fill: #1976D2; } /* Na+ 藍色 */
+        .ion-oh { fill: #7B1FA2; } /* OH- 紫色 */
+
+        /* 溫度計與液體動畫過渡 */
+        .liquid {
+            transition: height 1s ease, y 1s ease, opacity 1s ease;
+        }
+        .thermometer-level {
+            transition: height 1s ease, y 1s ease;
+        }
+        .arrow-group {
+            transition: transform 1s ease;
+        }
+        .pill {
+            transition: transform 1s ease-in-out; 
+        }
+
+        /* 通用文字 */
+        .label-text {
+            font-size: 14px;
+            fill: #555;
+            text-anchor: middle;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>化學實驗模擬動畫</h1>
+
+    <div class="svg-container">
+        <svg width="800" height="750" viewBox="0 0 800 750" id="mainSvg">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                refX="0" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+                </marker>
+            </defs>
+
+            <g id="beaker-a-group" transform="translate(100, 50)">
+                <path d="M0,0 L0,150 Q0,160 10,160 L90,160 Q100,160 100,150 L100,0" 
+                      fill="none" stroke="#333" stroke-width="3"/>
+                <rect id="liquid-a" x="5" y="60" width="90" height="95" fill="#e3f2fd" rx="5" ry="5"/>
+                <text x="50" y="185" class="label-text">100ml 氯化氫溶液</text>
+                
+                <text x="30" y="100" class="ion ion-h">H⁺</text>
+                <text x="70" y="120" class="ion ion-cl">Cl⁻</text>
+
+                <text id="ion-new-na" x="30" y="140" class="ion ion-na" opacity="0">Na⁺</text>
+                <text id="ion-new-oh" x="70" y="80" class="ion ion-oh" opacity="0">OH⁻</text>
+
+                <g id="thermo-a" transform="translate(45, 10)"> <rect x="0" y="-80" width="10" height="240" fill="white" stroke="#333" rx="5"/>
+                    <circle cx="5" cy="150" r="10" fill="white" stroke="#333"/>
+                    <rect x="2" y="-80" width="6" height="230" fill="#ddd" rx="3"/> <rect id="thermo-a-red" x="2" y="90" width="6" height="60" fill="red"/>
+                    <circle cx="5" cy="150" r="7" fill="red"/>
+                </g>
+
+                <g id="arrow-a" class="arrow-group" transform="translate(70, 100)">
+                    <line x1="30" y1="0" x2="5" y2="0" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="35" y="5" font-size="12" fill="#333">25°C</text>
+                </g>
+                <line x1="58" y1="40" x2="65" y2="40" stroke="#aaa" stroke-width="1"/>
+            </g>
+
+
+            <g id="beaker-b-group" transform="translate(500, 50)">
+                <path d="M0,0 L0,150 Q0,160 10,160 L90,160 Q100,160 100,150 L100,0" 
+                      fill="none" stroke="#333" stroke-width="3"/>
+                <rect id="liquid-b" x="5" y="60" width="90" height="95" fill="#e3f2fd" rx="5" ry="5"/>
+                <text x="50" y="185" class="label-text">100ml 氫氧化鈉溶液</text>
+                
+                <g id="ions-b">
+                    <text x="30" y="100" class="ion ion-na">Na⁺</text>
+                    <text x="70" y="120" class="ion ion-oh">OH⁻</text>
+                </g>
+            </g>
+
+            <g class="btn" id="btn-mix" onclick="mixSolutions()" transform="translate(100, 260)">
+                <rect width="500" height="40"/>
+                <text x="250" y="20">將氫氧化鈉溶液倒進氯化氫溶液</text>
+            </g>
+
+            <g class="btn btn-reset" id="btn-reset-1" onclick="resetExperiment1()" transform="translate(300, 320)">
+                <rect width="100" height="35"/>
+                <text x="50" y="17.5">重設</text>
+            </g>
+
+            <line x1="50" y1="380" x2="750" y2="380" stroke="#ccc" stroke-dasharray="5,5"/>
+
+            <g id="beaker-c-group" transform="translate(300, 420)"> <path d="M0,0 L0,150 Q0,160 10,160 L140,160 Q150,160 150,150 L150,0" 
+                      fill="none" stroke="#333" stroke-width="3"/>
+                <rect x="5" y="40" width="140" height="115" fill="#e3f2fd" rx="5" ry="5"/>
+                <text x="75" y="185" class="label-text">200ml 蒸餾水</text>
+
+                <g id="thermo-c" transform="translate(70, 10)"> <rect x="0" y="-80" width="10" height="240" fill="white" stroke="#333" rx="5"/>
+                    <circle cx="5" cy="150" r="10" fill="white" stroke="#333"/>
+                    <rect x="2" y="-80" width="6" height="230" fill="#ddd" rx="3"/>
+                    <rect id="thermo-c-red" x="2" y="90" width="6" height="60" fill="red"/>
+                    <circle cx="5" cy="150" r="7" fill="red"/>
+                </g>
+
+                <g id="arrow-c" class="arrow-group" transform="translate(95, 100)">
+                    <line x1="30" y1="0" x2="5" y2="0" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text id="text-c-temp" x="35" y="5" font-size="12" fill="#333">25°C</text>
+                </g>
+                
+                <g id="pill-hcl" class="pill" transform="translate(-100, 200)">
+                    <ellipse cx="20" cy="10" rx="20" ry="10" fill="#ddd" stroke="#666"/>
+                    <text x="20" y="14" font-size="10" text-anchor="middle">HCl</text>
+                </g>
+                <g id="pill-naoh" class="pill" transform="translate(230, 200)">
+                    <ellipse cx="20" cy="10" rx="20" ry="10" fill="#fff" stroke="#666"/>
+                    <text x="20" y="14" font-size="10" text-anchor="middle">NaOH</text>
+                </g>
+
+            </g>
+
+            <g class="btn" id="btn-drop-hcl" onclick="dropPill('hcl')" transform="translate(150, 680)">
+                <rect width="160" height="35"/>
+                <text x="80" y="17.5">將藥丸 HCl 放進蒸餾水</text>
+            </g>
+
+            <g class="btn" id="btn-drop-naoh" onclick="dropPill('naoh')" transform="translate(330, 680)">
+                <rect width="160" height="35"/>
+                <text x="80" y="17.5">將藥丸 NaOH 放進蒸餾水</text>
+            </g>
+
+            <g class="btn btn-reset" id="btn-reset-2" onclick="resetExperiment2()" transform="translate(510, 680)">
+                <rect width="80" height="35"/>
+                <text x="40" y="17.5">重設</text>
+            </g>
+
+        </svg>
+    </div>
+
+    <script>
+        // ==========================================
+        // 實驗一 邏輯 (中和反應)
+        // ==========================================
+        let isMixed = false;
+
+        function mixSolutions() {
+            if (isMixed) return;
+            isMixed = true;
+
+            // 1. 燒杯 B 液體和離子消失 (倒出)
+            document.getElementById('liquid-b').setAttribute('opacity', '0');
+            document.getElementById('ions-b').setAttribute('opacity', '0');
+
+            // 2. 燒杯 A 液面上升 (增加體積感)
+            // 原 y=60, h=95 -> 新 y=40, h=115 (稍微上升)
+            const liquidA = document.getElementById('liquid-a');
+            liquidA.setAttribute('y', '40');
+            liquidA.setAttribute('height', '115');
+
+            // 3. 燒杯 A 出現新離子
+            document.getElementById('ion-new-na').setAttribute('opacity', '1');
+            document.getElementById('ion-new-oh').setAttribute('opacity', '1');
+
+            // 4. 溫度計 A 上升 (25 -> 50)
+            // 25度: y=90, h=60. 50度: y=30, h=120.
+            const thermoRed = document.getElementById('thermo-a-red');
+            thermoRed.setAttribute('y', '30');
+            thermoRed.setAttribute('height', '120');
+
+            // 5. 箭頭 A 移動
+            // 原 y=100 -> 新 y=40 (指向 50度刻度位置)
+            const arrowGroup = document.getElementById('arrow-a');
+            arrowGroup.setAttribute('transform', 'translate(70, 40)');
+            
+            // 更新箭頭文字
+            arrowGroup.querySelector('text').textContent = "50°C";
+        }
+
+        function resetExperiment1() {
+            isMixed = false;
+
+            // 還原 B
+            document.getElementById('liquid-b').setAttribute('opacity', '1');
+            document.getElementById('ions-b').setAttribute('opacity', '1');
+
+            // 還原 A 液面
+            const liquidA = document.getElementById('liquid-a');
+            liquidA.setAttribute('y', '60');
+            liquidA.setAttribute('height', '95');
+
+            // 隱藏 A 新離子
+            document.getElementById('ion-new-na').setAttribute('opacity', '0');
+            document.getElementById('ion-new-oh').setAttribute('opacity', '0');
+
+            // 還原 A 溫度計
+            const thermoRed = document.getElementById('thermo-a-red');
+            thermoRed.setAttribute('y', '90');
+            thermoRed.setAttribute('height', '60');
+
+            // 還原 A 箭頭
+            const arrowGroup = document.getElementById('arrow-a');
+            arrowGroup.setAttribute('transform', 'translate(70, 100)');
+            arrowGroup.querySelector('text').textContent = "25°C";
+        }
+
+        // ==========================================
+        // 實驗二 邏輯 (溶解熱)
+        // ==========================================
+        let pillHclDropped = false;
+        let pillNaohDropped = false;
+
+        function dropPill(type) {
+            if (type === 'hcl') {
+                if (pillHclDropped) return;
+                pillHclDropped = true;
+                
+                // 藥丸移入杯底靠左
+                // 原始 transform="translate(-100, 200)" (相對於 Group C)
+                // 燒杯內左下坐標約 (20, 150)
+                // pill-hcl 是 g 元素，需要計算相對位移。
+                // 簡單做法：直接設定最終位置的 transform
+                // 燒杯 C 原點在 (300, 420)。
+                // 藥丸初始在 (-100, 200) 即全局 x=200, y=620
+                // 目標：燒杯內左底。燒杯內部寬150。左底約 x=30, y=145 (相對於燒杯組)
+                document.getElementById('pill-hcl').setAttribute('transform', 'translate(10, 135)');
+                
+                // 氯化氫固體放入水中通常會放熱，但 Prompt 指示：
+                // "不溶解... 只有NaOH放進去時溫度上升"。
+                // 故 HCl 點擊不改變溫度。
+            } 
+            else if (type === 'naoh') {
+                if (pillNaohDropped) return;
+                pillNaohDropped = true;
+
+                // 藥丸移入杯底靠右
+                // 目標：燒杯內右底。右底約 x=100, y=145
+                document.getElementById('pill-naoh').setAttribute('transform', 'translate(100, 135)');
+
+                // 溫度上升到 50度
+                const thermoRed = document.getElementById('thermo-c-red');
+                thermoRed.setAttribute('y', '30');
+                thermoRed.setAttribute('height', '120');
+
+                // 箭頭移動
+                const arrowGroup = document.getElementById('arrow-c');
+                arrowGroup.setAttribute('transform', 'translate(95, 40)');
+                document.getElementById('text-c-temp').textContent = "50°C";
+            }
+        }
+
+        function resetExperiment2() {
+            pillHclDropped = false;
+            pillNaohDropped = false;
+
+            // 還原藥丸位置 (移出燒杯)
+            document.getElementById('pill-hcl').setAttribute('transform', 'translate(-100, 200)');
+            document.getElementById('pill-naoh').setAttribute('transform', 'translate(230, 200)');
+
+            // 還原溫度計
+            const thermoRed = document.getElementById('thermo-c-red');
+            thermoRed.setAttribute('y', '90');
+            thermoRed.setAttribute('height', '60');
+
+            // 還原箭頭
+            const arrowGroup = document.getElementById('arrow-c');
+            arrowGroup.setAttribute('transform', 'translate(95, 100)');
+            document.getElementById('text-c-temp').textContent = "25°C";
+        }
+    </script>
+</body>
+</html>
