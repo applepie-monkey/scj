@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>植物葉子檢索表 (A-D版)</title>
+    <style>
+        /* --- 全局設定 --- */
+        body {
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 10px;
+            overflow-y: auto; 
+            touch-action: pan-y; 
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin: 5px 0;
+            font-size: 1.5rem;
+        }
+
+        /* --- 樹狀結構 CSS --- */
+        .tree {
+            width: 100%;
+            min-width: 768px;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px; 
+            padding-top: 10px;
+        }
+
+        .tree ul {
+            padding-top: 20px; 
+            position: relative;
+            transition: all 0.5s;
+            display: flex;
+            justify-content: center;
+            padding-left: 0;
+        }
+
+        .tree li {
+            float: left; text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 20px 5px 0 5px;
+            transition: all 0.5s;
+        }
+
+        /* --- 繪製連接線 --- */
+        .tree li::before, .tree li::after {
+            content: '';
+            position: absolute; top: 0; right: 50%;
+            border-top: 2px solid #999;
+            width: 50%; height: 20px;
+        }
+        .tree li::after {
+            right: auto; left: 50%;
+            border-left: 2px solid #999;
+        }
+        .tree li:only-child::after, .tree li:only-child::before {
+            display: none;
+        }
+        .tree li:only-child { padding-top: 0; }
+        .tree li:first-child::before, .tree li:last-child::after {
+            border: 0 none;
+        }
+        .tree li:last-child::before{
+            border-right: 2px solid #999;
+            border-radius: 0 5px 0 0;
+        }
+        .tree li:first-child::after{
+            border-radius: 5px 0 0 0;
+        }
+        .tree ul ul::before{
+            content: '';
+            position: absolute; top: 0; left: 50%;
+            border-left: 2px solid #999;
+            width: 0; height: 20px;
+        }
+
+        /* --- 檢索表方格 (Drop Zone) --- */
+        .node-wrapper {
+            display: inline-block;
+            position: relative; /* 為了放置旁邊的提示字 */
+            vertical-align: top;
+        }
+
+        .node-content {
+            background-color: white;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            display: inline-block;
+            width: 140px; 
+            height: 90px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+
+        /* 提示文字 (如: B,C,D) */
+        .hint-text {
+            position: absolute;
+            left: 105%; /* 顯示在方格右邊 */
+            top: 50%;
+            transform: translateY(-50%);
+            background: #f1c40f;
+            color: #333;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none; /* 不干擾點擊 */
+            z-index: 10; /* 確保浮在連線上方 */
+        }
+
+        .hint-text.show {
+            opacity: 1;
+        }
+
+        /* 根節點 A-D */
+        .root-label {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            font-weight: bold;
+            padding: 5px 15px;
+            background: #fff;
+            border: 2px dashed #e74c3c;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* 數字標籤 */
+        .number-badge {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 24px;
+            height: 24px;
+            background-color: #2980b9;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .drop-area {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- 來源區 (Draggable Items) --- */
+        .source-container {
+            width: 95%;
+            background-color: white;
+            border: 2px dashed #bdc3c7;
+            border-radius: 15px;
+            padding: 10px;
+            margin-top: 0px; 
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .source-title {
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        /* --- 綠色文字方塊 --- */
+        .drag-item {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            text-align: center;
+            
+            width: fit-content; 
+            min-width: 40px;
+            min-height: 25px;
+            white-space: nowrap; 
+
+            /* 為了自訂方塊的佈局 */
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .drag-item:active {
+            cursor: grabbing;
+        }
+
+        /* 自訂方塊的編輯按鈕 */
+        .edit-btn {
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            line-height: 20px;
+            text-align: center;
+            cursor: pointer;
+            display: none; /* 預設隱藏，只有有 .custom-block 的才有 */
+        }
+        
+        .custom-block .edit-btn {
+            display: inline-block;
+        }
+        
+        .edit-btn:hover {
+            background: rgba(255,255,255,0.8);
+            color: black;
+        }
+
+        /* 拖動中的樣式 */
+        .dragging {
+            position: fixed; 
+            opacity: 0.8;
+            transform: scale(1.1);
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* --- 放入方格後的樣式 --- */
+        .node-content .drag-item {
+            background-color: #2ecc71;
+            border-radius: 4px;
+            width: 100%;
+            height: 100%;
+            font-size: 1.4rem;
+            line-height: 1.1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            white-space: normal; 
+            box-shadow: none;
+        }
+
+        /* 放入後隱藏編輯按鈕，只顯示文字 */
+        .node-content .drag-item .edit-btn {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>植物葉子檢索表</h1>
+
+    <div class="tree">
+        <ul>
+            <li>
+                <div class="root-label">A - D</div>
+                <ul>
+                    <li>
+                        <div class="node-content">
+                            <div class="number-badge">1</div>
+                            <div class="drop-area" id="box-1"></div>
+                        </div>
+                        <ul>
+                            <li>
+                                <div class="node-content">
+                                    <div class="number-badge">3</div>
+                                    <div class="drop-area" id="box-3"></div>
+                                </div>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <div class="node-wrapper">
+                            <div class="node-content">
+                                <div class="number-badge">2</div>
+                                <div class="drop-area" id="box-2"></div>
+                            </div>
+                            <div class="hint-text" id="hint-2"></div>
+                        </div>
+
+                        <ul>
+                            <li>
+                                <div class="node-content">
+                                    <div class="number-badge">4</div>
+                                    <div class="drop-area" id="box-4"></div>
+                                </div>
+                                <ul>
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">6</div>
+                                            <div class="drop-area" id="box-6"></div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </li>
+
+                            <li>
+                                <div class="node-wrapper">
+                                    <div class="node-content">
+                                        <div class="number-badge">5</div>
+                                        <div class="drop-area" id="box-5"></div>
+                                    </div>
+                                    <div class="hint-text" id="hint-5"></div>
+                                </div>
+                                <ul>
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">7</div>
+                                            <div class="drop-area" id="box-7"></div>
+                                        </div>
+                                        <ul>
+                                            <li>
+                                                <div class="node-content">
+                                                    <div class="number-badge">9</div>
+                                                    <div class="drop-area" id="box-9"></div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </li>
+
+                                    <li>
+                                        <div class="node-content">
+                                            <div class="number-badge">8</div>
+                                            <div class="drop-area" id="box-8"></div>
+                                        </div>
+                                        <ul>
+                                            <li>
+                                                <div class="node-content">
+                                                    <div class="number-badge">10</div>
+                                                    <div class="drop-area" id="box-10"></div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="source-container" id="source-zone">
+        <div class="source-title">選項區 (可拖曳)</div>
+        
+        <div class="drag-item">呈心形</div>
+        <div class="drag-item">不呈心形</div>
+        <div class="drag-item">葉邊圓滑</div>
+        <div class="drag-item">葉邊不圓滑</div>
+        
+        <div class="drag-item">A</div>
+        <div class="drag-item">B</div>
+        <div class="drag-item">C</div>
+        <div class="drag-item">D</div>
+
+        <div class="drag-item custom-block">
+            <span class="text">按筆的圖案自己輸入1</span>
+            <span class="edit-btn" onmousedown="event.stopPropagation(); editText(this)">✎</span>
+        </div>
+        
+        <div class="drag-item custom-block">
+            <span class="text">按筆的圖案自己輸入2</span>
+            <span class="edit-btn" onmousedown="event.stopPropagation(); editText(this)">✎</span>
+        </div>
+    </div>
+
+    <script>
+        const draggables = document.querySelectorAll('.drag-item');
+        let currentDragItem = null;
+        let cloneItem = null;
+        let initialX, initialY, offsetX, offsetY;
+
+        // --- 編輯文字功能 ---
+        function editText(btn) {
+            // 找到按鈕旁邊的文字 span
+            const textSpan = btn.parentElement.querySelector('.text');
+            const oldText = textSpan.innerText;
+            const newText = prompt("請輸入文字：", oldText);
+            
+            if (newText !== null && newText.trim() !== "") {
+                textSpan.innerText = newText;
+            }
+        }
+
+        // --- 拖曳事件綁定 ---
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('mousedown', handleMouseDown);
+        });
+
+        function handleTouchStart(e) {
+            if(e.target.classList.contains('edit-btn')) return; // 防止編輯時觸發拖曳
+            e.preventDefault();
+            const touch = e.touches[0];
+            startDrag(e.currentTarget, touch.clientX, touch.clientY);
+            document.addEventListener('touchmove', handleTouchMove, {passive: false});
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            const touch = e.changedTouches[0];
+            endDrag(touch.clientX, touch.clientY);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleMouseDown(e) {
+            if(e.target.classList.contains('edit-btn')) return;
+            e.preventDefault();
+            startDrag(e.currentTarget, e.clientX, e.clientY);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function handleMouseMove(e) {
+            e.preventDefault();
+            moveDrag(e.clientX, e.clientY);
+        }
+
+        function handleMouseUp(e) {
+            endDrag(e.clientX, e.clientY);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        // --- 核心拖曳邏輯 ---
+        function startDrag(target, clientX, clientY) {
+            currentDragItem = target;
+            
+            cloneItem = currentDragItem.cloneNode(true);
+            cloneItem.classList.add('dragging');
+            cloneItem.style.width = currentDragItem.offsetWidth + 'px'; 
+            cloneItem.style.height = currentDragItem.offsetHeight + 'px';
+            
+            document.body.appendChild(cloneItem);
+
+            const rect = currentDragItem.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+
+            currentDragItem.style.opacity = '0.3';
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!cloneItem) return;
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+        }
+
+        function endDrag(clientX, clientY) {
+            if (!currentDragItem || !cloneItem) return;
+
+            cloneItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            cloneItem.remove();
+            cloneItem = null;
+            currentDragItem.style.opacity = '1';
+
+            if (elemBelow) {
+                let dropZone = elemBelow.closest('.drop-area');
+                let sourceZone = elemBelow.closest('#source-zone');
+
+                if (dropZone) {
+                    // --- 限制邏輯 A-D 只能放 3, 6, 9, 10 ---
+                    const itemText = currentDragItem.innerText.replace('✎', '').trim(); // 取得純文字
+                    const parentNode = dropZone.parentElement; 
+                    const numberBadge = parentNode.querySelector('.number-badge');
+                    
+                    if (numberBadge) {
+                        const boxNumber = numberBadge.innerText;
+                        // 這裡定義 A, B, C, D 邏輯
+                        const restrictedItems = ['A', 'B', 'C', 'D'];
+                        const allowedBoxes = ['3', '6', '9', '10'];
+
+                        if (restrictedItems.includes(itemText)) {
+                            if (!allowedBoxes.includes(boxNumber)) {
+                                alert(`"${itemText}" 只能放入結果方塊 (3, 6, 9, 10)`);
+                                return; 
+                            }
+                        }
+                    }
+
+                    // 如果方格內已經有東西，移回來源區
+                    if (dropZone.children.length > 0) {
+                        const existingItem = dropZone.children[0];
+                        document.getElementById('source-zone').appendChild(existingItem);
+                    }
+                    dropZone.appendChild(currentDragItem);
+                    
+                    // --- 觸發檢查：更新提示文字 ---
+                    checkHints();
+
+                } else if (sourceZone) {
+                    sourceZone.appendChild(currentDragItem);
+                    // 移出方塊也要重新檢查提示
+                    checkHints();
+                }
+            }
+            currentDragItem = null;
+        }
+
+        // --- 檢查並更新動態提示文字 (核心修改處: 使用 A,B,C,D) ---
+        function checkHints() {
+            // 定義總集合為 A, B, C, D
+            const allItems = ['A', 'B', 'C', 'D'];
+            const hint2 = document.getElementById('hint-2');
+            const hint5 = document.getElementById('hint-5');
+
+            // 輔助函數：獲取指定方塊內的純文字 (去除編輯筆圖示)
+            const getBoxContent = (id) => {
+                const box = document.getElementById(id);
+                if (box && box.children.length > 0) {
+                    return box.children[0].innerText.replace('✎', '').trim();
+                }
+                return null;
+            };
+
+            const val3 = getBoxContent('box-3');
+            const val6 = getBoxContent('box-6');
+
+            // --- 處理 Hint 2 (方塊 2 旁) ---
+            // 邏輯：顯示 {A,B,C,D} - {方塊3的內容}
+            if (val3 && allItems.includes(val3)) {
+                // 過濾掉 Box 3 的值
+                const remainingForBox2 = allItems.filter(item => item !== val3);
+                hint2.innerText = remainingForBox2.join(', ');
+                hint2.classList.add('show');
+            } else {
+                hint2.classList.remove('show');
+                hint2.innerText = '';
+            }
+
+            // --- 處理 Hint 5 (方塊 5 旁) ---
+            // 邏輯：顯示 {A,B,C,D} - {方塊3的內容} - {方塊6的內容}
+            if (val3 && val6 && allItems.includes(val3) && allItems.includes(val6)) {
+                // 過濾掉 Box 3 和 Box 6 的值
+                const remainingForBox5 = allItems.filter(item => item !== val3 && item !== val6);
+                hint5.innerText = remainingForBox5.join(', ');
+                hint5.classList.add('show');
+            } else {
+                hint5.classList.remove('show');
+                hint5.innerText = '';
+            }
+        }
+    </script>
+</body>
+</html>
