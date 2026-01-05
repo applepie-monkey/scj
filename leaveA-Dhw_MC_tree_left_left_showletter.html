@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>植物葉子挑戰 (全兩關)</title>
+    <style>
+        /* --- 全局設定 --- */
+        :root {
+            --primary-color: #4CAF50;
+            --danger-color: #e74c3c;
+            --bg-color: #f0f4f1;
+            --card-width: 600px;
+        }
+
+        body {
+            margin: 0;
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 允許垂直滾動以適應第二關的高度 */
+            overflow-y: auto; 
+            touch-action: pan-y; 
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* =========================================
+           第一關樣式 (辨認葉子)
+           ========================================= */
+        #level1-wrapper {
+            width: 100%;
+            height: 100vh; /* 第一關佔滿全屏 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-panel {
+            width: 90%;
+            max-width: var(--card-width);
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .header-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .lives-container {
+            font-size: 28px;
+            color: var(--danger-color);
+            letter-spacing: 5px;
+        }
+
+        .question-box {
+            background: #f9f9f9;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .hint-text-q {
+            font-size: 1rem;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .option-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 25px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+            color: #555;
+        }
+
+        .option-input { display: none; }
+
+        .option-input:checked + .option-btn {
+            background-color: #e8f5e9;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .submit-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 18px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background 0.3s;
+        }
+
+        .submit-btn:active { transform: scale(0.98); }
+
+        /* 模態對話框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(3px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 450px;
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal h2 { margin-top: 0; margin-bottom: 15px; font-size: 2rem; }
+        .modal-msg { font-size: 1.2rem; line-height: 1.6; color: #555; margin-bottom: 30px; }
+        .modal-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* =========================================
+           第二關樣式 (檢索表)
+           ========================================= */
+        #level2-wrapper {
+            display: none; /* 預設隱藏 */
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        h1.level2-title {
+            color: #2c3e50;
+            margin: 15px 0;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        /* --- 樹狀結構 CSS --- */
+        .tree {
+            width: 100%;
+            min-width: 768px; /* 確保樹狀圖不被擠壓 */
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px; 
+            padding-top: 10px;
+            overflow-x: auto; /* 允許橫向滾動 */
+        }
+
+        .tree ul {
+            padding-top: 20px; 
+            position: relative;
+            transition: all 0.5s;
+            display: flex;
+            justify-content: center;
+            padding-left: 0;
+        }
+
+        .tree li {
+            float: left; text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 20px 5px 0 5px;
+            transition: all 0.5s;
+        }
+
+        /* 連接線 */
+        .tree li::before, .tree li::after {
+            content: '';
+            position: absolute; top: 0; right: 50%;
+            border-top: 2px solid #999;
+            width: 50%; height: 20px;
+        }
+        .tree li::after {
+            right: auto; left: 50%;
+            border-left: 2px solid #999;
+        }
+        .tree li:only-child::after, .tree li:only-child::before { display: none; }
+        .tree li:only-child { padding-top: 0; }
+        .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+        .tree li:last-child::before{ border-right: 2px solid #999; border-radius: 0 5px 0 0; }
+        .tree li:first-child::after{ border-radius: 5px 0 0 0; }
+        .tree ul ul::before{
+            content: '';
+            position: absolute; top: 0; left: 50%;
+            border-left: 2px solid #999;
+            width: 0; height: 20px;
+        }
+
+        /* 檢索表方格 */
+        .node-wrapper {
+            display: inline-block;
+            position: relative;
+            vertical-align: top;
+        }
+
+        .node-content {
+            background-color: white;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            display: inline-block;
+            width: 140px; 
+            height: 90px;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+
+        .hint-text {
+            position: absolute;
+            left: 105%; top: 50%;
+            transform: translateY(-50%);
+            background: #f1c40f;
+            color: #333;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hint-text.show { opacity: 1; }
+
+        .root-label {
+            font-size: 1.5rem;
+            color: #e74c3c;
+            font-weight: bold;
+            padding: 5px 15px;
+            background: #fff;
+            border: 2px dashed #e74c3c;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        .number-badge {
+            position: absolute;
+            top: -10px; left: -10px;
+            width: 24px; height: 24px;
+            background-color: #2980b9;
+            color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px;
+            z-index: 5; pointer-events: none;
+        }
+
+        .drop-area {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+
+        /* 來源區 & 拖曳項目 */
+        .source-container {
+            width: 95%;
+            background-color: white;
+            border: 2px dashed #bdc3c7;
+            border-radius: 15px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .source-title {
+            width: 100%; text-align: center;
+            font-size: 0.9rem; color: #999;
+            margin-bottom: 5px;
+        }
+
+        .drag-item {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            text-align: center;
+            width: fit-content; 
+            min-width: 40px; min-height: 25px;
+            white-space: nowrap; 
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+
+        .drag-item:active { cursor: grabbing; }
+
+        .edit-btn {
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            width: 20px; height: 20px;
+            font-size: 12px; line-height: 20px;
+            text-align: center; cursor: pointer;
+            display: none;
+        }
+        
+        .custom-block .edit-btn { display: inline-block; }
+        .edit-btn:hover { background: rgba(255,255,255,0.8); color: black; }
+
+        .dragging {
+            position: fixed; 
+            opacity: 0.8;
+            transform: scale(1.1);
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .node-content .drag-item {
+            background-color: #2ecc71;
+            border-radius: 4px;
+            width: 100%; height: 100%;
+            font-size: 1.4rem;
+            line-height: 1.1;
+            display: flex; align-items: center; justify-content: center;
+            padding: 2px;
+            white-space: normal; 
+            box-shadow: none;
+        }
+
+        .node-content .drag-item .edit-btn { display: none; }
+
+    </style>
+</head>
+<body>
+
+    <div id="level1-wrapper">
+        <div class="game-panel">
+            <div class="header-stats">
+                <h2 style="margin:0">第一關：辨認特徵</h2>
+                <div class="lives-container" id="livesDisplay">❤❤❤</div>
+            </div>
+
+            <div id="game-content">
+                <div class="question-box">
+                    <div class="question-text" id="questionText">題目載入中...</div>
+                    <div class="hint-text-q">(可多選，請觀察實物或圖片)</div>
+                    
+                    <div class="options-grid">
+                        <label><input type="checkbox" class="option-input" value="A"><div class="option-btn">A</div></label>
+                        <label><input type="checkbox" class="option-input" value="B"><div class="option-btn">B</div></label>
+                        <label><input type="checkbox" class="option-input" value="C"><div class="option-btn">C</div></label>
+                        <label><input type="checkbox" class="option-input" value="D"><div class="option-btn">D</div></label>
+                    </div>
+                </div>
+                <button class="submit-btn" onclick="checkAnswer()">提交答案</button>
+            </div>
+
+            <div id="end-screen" style="display: none; text-align: center;">
+                <h2 id="end-title" style="font-size: 2.5rem; margin-bottom: 20px;"></h2>
+                <p id="end-message" style="font-size: 1.2rem; color: #666; margin-bottom: 40px;"></p>
+                <button class="submit-btn" id="end-btn" onclick="restartLevel1()">重新開始</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="level2-wrapper">
+        <h1 class="level2-title">第二關：製作檢索表</h1>
+
+        <div class="tree">
+            <ul>
+                <li>
+                    <div class="root-label">A - D</div>
+                    <ul>
+                        <li>
+                            <div class="node-content">
+                                <div class="number-badge">1</div>
+                                <div class="drop-area" id="box-1"></div>
+                            </div>
+                            <ul>
+                                <li>
+                                    <div class="node-content">
+                                        <div class="number-badge">3</div>
+                                        <div class="drop-area" id="box-3"></div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li>
+                            <div class="node-wrapper">
+                                <div class="node-content">
+                                    <div class="number-badge">2</div>
+                                    <div class="drop-area" id="box-2"></div>
+                                </div>
+                                <div class="hint-text" id="hint-2"></div>
+                            </div>
+
+                            <ul>
+                                <li>
+                                    <div class="node-content">
+                                        <div class="number-badge">4</div>
+                                        <div class="drop-area" id="box-4"></div>
+                                    </div>
+                                    <ul>
+                                        <li>
+                                            <div class="node-content">
+                                                <div class="number-badge">6</div>
+                                                <div class="drop-area" id="box-6"></div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </li>
+
+                                <li>
+                                    <div class="node-wrapper">
+                                        <div class="node-content">
+                                            <div class="number-badge">5</div>
+                                            <div class="drop-area" id="box-5"></div>
+                                        </div>
+                                        <div class="hint-text" id="hint-5"></div>
+                                    </div>
+                                    <ul>
+                                        <li>
+                                            <div class="node-content">
+                                                <div class="number-badge">7</div>
+                                                <div class="drop-area" id="box-7"></div>
+                                            </div>
+                                            <ul>
+                                                <li>
+                                                    <div class="node-content">
+                                                        <div class="number-badge">9</div>
+                                                        <div class="drop-area" id="box-9"></div>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </li>
+
+                                        <li>
+                                            <div class="node-content">
+                                                <div class="number-badge">8</div>
+                                                <div class="drop-area" id="box-8"></div>
+                                            </div>
+                                            <ul>
+                                                <li>
+                                                    <div class="node-content">
+                                                        <div class="number-badge">10</div>
+                                                        <div class="drop-area" id="box-10"></div>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="source-container" id="source-zone">
+            <div class="source-title">選項區 (可拖曳至上方)</div>
+            
+            <div class="drag-item">呈心形</div>
+            <div class="drag-item">不呈心形</div>
+            <div class="drag-item">葉邊圓滑</div>
+            <div class="drag-item">葉邊不圓滑</div>
+            
+            <div class="drag-item">A</div>
+            <div class="drag-item">B</div>
+            <div class="drag-item">C</div>
+            <div class="drag-item">D</div>
+
+            <div class="drag-item custom-block">
+                <span class="text">按筆的圖案自己輸入1</span>
+                <span class="edit-btn" onmousedown="event.stopPropagation(); editText(this)">✎</span>
+            </div>
+            
+            <div class="drag-item custom-block">
+                <span class="text">按筆的圖案自己輸入2</span>
+                <span class="edit-btn" onmousedown="event.stopPropagation(); editText(this)">✎</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="feedbackModal">
+        <div class="modal">
+            <h2 id="modal-title"></h2>
+            <div class="modal-msg" id="modal-msg"></div>
+            <button class="modal-btn" onclick="closeModal()">確定</button>
+        </div>
+    </div>
+
+    <script>
+        // =============================================
+        // 第一關邏輯 (Level 1)
+        // =============================================
+        const l1_questions = [
+            { text: "Q1. 哪片葉呈心形？", answers: ["A"] },
+            { text: "Q2. 哪片葉的葉邊不光滑？", answers: ["C"] },
+            { text: "Q3. 哪片葉有斑紋？", answers: ["B"] }
+        ];
+
+        let l1_currentIndex = 0;
+        let l1_lives = 3;
+        let l1_isCorrectState = false;
+
+        function initLevel1() {
+            l1_currentIndex = 0;
+            l1_lives = 3;
+            l1_isCorrectState = false;
+            updateLivesDisplay();
+            loadQuestion();
+            document.getElementById('game-content').style.display = 'block';
+            document.getElementById('end-screen').style.display = 'none';
+        }
+
+        function updateLivesDisplay() {
+            let hearts = "";
+            for(let i=0; i<l1_lives; i++) hearts += "❤";
+            for(let i=l1_lives; i<3; i++) hearts += "♡";
+            document.getElementById('livesDisplay').innerText = hearts;
+        }
+
+        function loadQuestion() {
+            document.querySelectorAll('.option-input').forEach(input => input.checked = false);
+            document.getElementById('questionText').innerText = l1_questions[l1_currentIndex].text;
+        }
+
+        function checkAnswer() {
+            const currentQ = l1_questions[l1_currentIndex];
+            const checkboxes = document.querySelectorAll('.option-input:checked');
+            const selectedValues = Array.from(checkboxes).map(cb => cb.value).sort();
+            const correctValues = currentQ.answers.sort();
+
+            const isCorrect = JSON.stringify(selectedValues) === JSON.stringify(correctValues);
+
+            if (isCorrect) {
+                l1_isCorrectState = true;
+                showModal("正確", "正確，所以利用這個特徵將葉從其他葉區分出來。");
+            } else {
+                l1_isCorrectState = false;
+                l1_lives--;
+                updateLivesDisplay();
+                if (l1_lives > 0) {
+                    showModal("錯誤", "請再嘗試");
+                } else {
+                    showModal("遊戲結束", "生命值已耗盡。");
+                }
+            }
+        }
+
+        function showModal(title, msg) {
+            const titleElem = document.getElementById('modal-title');
+            titleElem.innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            
+            if (title === "正確") titleElem.style.color = "#4CAF50";
+            else titleElem.style.color = "#e74c3c";
+
+            document.getElementById('feedbackModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('feedbackModal').style.display = 'none';
+
+            if (l1_lives === 0) {
+                endLevel1(false);
+                return;
+            }
+
+            if (l1_isCorrectState) {
+                l1_currentIndex++;
+                if (l1_currentIndex < l1_questions.length) {
+                    loadQuestion();
+                } else {
+                    endLevel1(true); // 勝利
+                }
+            }
+        }
+
+        function endLevel1(isWin) {
+            document.getElementById('game-content').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'block';
+            
+            const title = document.getElementById('end-title');
+            const msg = document.getElementById('end-message');
+            const btn = document.getElementById('end-btn');
+
+            if (isWin) {
+                title.innerText = "🎉 挑戰成功！";
+                title.style.color = "#4CAF50";
+                msg.innerText = "你已成功辨認所有葉子的特徵，準備好應用這些知識了嗎？";
+                
+                // 這裡修改按鈕，進入第二關
+                btn.innerText = "進入第二關";
+                btn.onclick = startLevel2; 
+            } else {
+                title.innerText = "💔 挑戰失敗";
+                title.style.color = "#e74c3c";
+                msg.innerText = "別灰心，請觀察葉子特徵後再試一次！";
+                
+                // 這裡保持重新開始第一關
+                btn.innerText = "重新開始";
+                btn.onclick = restartLevel1;
+            }
+        }
+
+        function restartLevel1() {
+            initLevel1();
+        }
+
+        function startLevel2() {
+            // 隱藏第一關，顯示第二關
+            document.getElementById('level1-wrapper').style.display = 'none';
+            document.getElementById('level2-wrapper').style.display = 'flex';
+            // 調整滾動行為，因為第二關需要滾動
+            document.body.style.overflowY = 'auto';
+            window.scrollTo(0, 0);
+        }
+
+        // 啟動第一關
+        initLevel1();
+
+
+        // =============================================
+        // 第二關邏輯 (Level 2) - 拖放功能
+        // =============================================
+        const draggables = document.querySelectorAll('.drag-item');
+        let currentDragItem = null;
+        let cloneItem = null;
+        let initialX, initialY, offsetX, offsetY;
+
+        // --- 編輯文字功能 ---
+        function editText(btn) {
+            const textSpan = btn.parentElement.querySelector('.text');
+            const oldText = textSpan.innerText;
+            const newText = prompt("請輸入文字：", oldText);
+            
+            if (newText !== null && newText.trim() !== "") {
+                textSpan.innerText = newText;
+            }
+        }
+
+        // --- 拖曳事件綁定 ---
+        draggables.forEach(item => {
+            item.addEventListener('touchstart', handleTouchStart, {passive: false});
+            item.addEventListener('mousedown', handleMouseDown);
+        });
+
+        function handleTouchStart(e) {
+            if(e.target.classList.contains('edit-btn')) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            startDrag(e.currentTarget, touch.clientX, touch.clientY);
+            document.addEventListener('touchmove', handleTouchMove, {passive: false});
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }
+
+        function handleTouchEnd(e) {
+            const touch = e.changedTouches[0];
+            endDrag(touch.clientX, touch.clientY);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        }
+
+        function handleMouseDown(e) {
+            if(e.target.classList.contains('edit-btn')) return;
+            e.preventDefault();
+            startDrag(e.currentTarget, e.clientX, e.clientY);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function handleMouseMove(e) {
+            e.preventDefault();
+            moveDrag(e.clientX, e.clientY);
+        }
+
+        function handleMouseUp(e) {
+            endDrag(e.clientX, e.clientY);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        // --- 核心拖曳邏輯 ---
+        function startDrag(target, clientX, clientY) {
+            currentDragItem = target;
+            
+            cloneItem = currentDragItem.cloneNode(true);
+            cloneItem.classList.add('dragging');
+            cloneItem.style.width = currentDragItem.offsetWidth + 'px'; 
+            cloneItem.style.height = currentDragItem.offsetHeight + 'px';
+            
+            document.body.appendChild(cloneItem);
+
+            const rect = currentDragItem.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+
+            currentDragItem.style.opacity = '0.3';
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!cloneItem) return;
+            cloneItem.style.left = (clientX - offsetX) + 'px';
+            cloneItem.style.top = (clientY - offsetY) + 'px';
+        }
+
+        function endDrag(clientX, clientY) {
+            if (!currentDragItem || !cloneItem) return;
+
+            cloneItem.style.display = 'none';
+            let elemBelow = document.elementFromPoint(clientX, clientY);
+            cloneItem.remove();
+            cloneItem = null;
+            currentDragItem.style.opacity = '1';
+
+            if (elemBelow) {
+                let dropZone = elemBelow.closest('.drop-area');
+                let sourceZone = elemBelow.closest('#source-zone');
+
+                if (dropZone) {
+                    // --- 限制邏輯 A-D 只能放 3, 6, 9, 10 ---
+                    const itemText = currentDragItem.innerText.replace('✎', '').trim();
+                    const parentNode = dropZone.parentElement; 
+                    const numberBadge = parentNode.querySelector('.number-badge');
+                    
+                    if (numberBadge) {
+                        const boxNumber = numberBadge.innerText;
+                        const restrictedItems = ['A', 'B', 'C', 'D'];
+                        const allowedBoxes = ['3', '6', '9', '10'];
+
+                        if (restrictedItems.includes(itemText)) {
+                            if (!allowedBoxes.includes(boxNumber)) {
+                                alert(`"${itemText}" 只能放入結果方塊 (3, 6, 9, 10)`);
+                                return; 
+                            }
+                        }
+                    }
+
+                    // 如果方格內已經有東西，移回來源區
+                    if (dropZone.children.length > 0) {
+                        const existingItem = dropZone.children[0];
+                        document.getElementById('source-zone').appendChild(existingItem);
+                    }
+                    dropZone.appendChild(currentDragItem);
+                    
+                    checkHints();
+
+                } else if (sourceZone) {
+                    sourceZone.appendChild(currentDragItem);
+                    checkHints();
+                }
+            }
+            currentDragItem = null;
+        }
+
+        // --- 檢查並更新動態提示文字 ---
+        function checkHints() {
+            const allItems = ['A', 'B', 'C', 'D'];
+            const hint2 = document.getElementById('hint-2');
+            const hint5 = document.getElementById('hint-5');
+
+            const getBoxContent = (id) => {
+                const box = document.getElementById(id);
+                if (box && box.children.length > 0) {
+                    return box.children[0].innerText.replace('✎', '').trim();
+                }
+                return null;
+            };
+
+            const val3 = getBoxContent('box-3');
+            const val6 = getBoxContent('box-6');
+
+            // --- Hint 2 ---
+            if (val3 && allItems.includes(val3)) {
+                const remainingForBox2 = allItems.filter(item => item !== val3);
+                hint2.innerText = remainingForBox2.join(', ');
+                hint2.classList.add('show');
+            } else {
+                hint2.classList.remove('show');
+                hint2.innerText = '';
+            }
+
+            // --- Hint 5 ---
+            if (val3 && val6 && allItems.includes(val3) && allItems.includes(val6)) {
+                const remainingForBox5 = allItems.filter(item => item !== val3 && item !== val6);
+                hint5.innerText = remainingForBox5.join(', ');
+                hint5.classList.add('show');
+            } else {
+                hint5.classList.remove('show');
+                hint5.innerText = '';
+            }
+        }
+    </script>
+</body>
+</html>
