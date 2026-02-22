@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>導線電阻實驗探究系統 | 偵錯與共享版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif; }
+        body { background-color: #f5f7fa; color: #333; padding: 15px; max-width: 1000px; margin: 0 auto; padding-bottom: 60px; }
+        .header { text-align: center; margin-bottom: 20px; padding: 15px 0; background: linear-gradient(135deg, #1e5799 0%, #207cca 51%, #2989d8 100%); color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.4em; margin-bottom: 5px; }
+        .subtitle { font-size: 0.9em; opacity: 0.9; }
+        .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 15px; margin-bottom: 15px; }
+        .card-title { font-weight: bold; margin-bottom: 10px; color: #1e5799; display: flex; align-items: center; }
+        .card-title::before { content: "•"; margin-right: 8px; color: #1e5799; font-size: 1.5em; }
+        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .input-row { display: flex; gap: 10px; }
+        .input-field { flex: 1; display: flex; flex-direction: column; }
+        label { font-size: 0.85em; margin-bottom: 4px; color: #555; font-weight: bold; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1em; }
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { flex: 1; min-width: 120px; padding: 12px; border: none; border-radius: 5px; background: #1e5799; color: white; font-weight: bold; cursor: pointer; transition: background 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        button:hover { background: #1a4a85; }
+        button.secondary { background: #e0e0e0; color: #333; }
+        button.secondary:hover { background: #d0d0d0; }
+        button.danger { background: #ff4444; }
+        button.danger:hover { background: #e03333; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th, td { padding: 8px; text-align: center; border-bottom: 1px solid #eee; }
+        th { background-color: #f0f5ff; font-weight: bold; }
+        tr.anomaly-row td { background-color: #ffebee; color: #d32f2f; }
+        .source-badge { padding: 3px 6px; border-radius: 12px; font-size: 0.8em; color: white; }
+        
+        .chart-container { height: 300px; margin-top: 15px; }
+        
+        /* 異常與偵錯區塊 */
+        .debug-section { background: #fdf2f8; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #e91e63; }
+        .debug-title { font-weight: bold; color: #c2185b; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+        .anomaly-list { margin-left: 20px; font-size: 0.9em; color: #555; margin-bottom: 10px; }
+        .discussion-prompt { background: white; padding: 10px; border-radius: 5px; font-size: 0.9em; color: #333; border: 1px dashed #e91e63; }
+        
+        /* 預測區塊 */
+        .prediction-section { background: #fff3e0; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ff9800; }
+        .prediction-inputs { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+        .prediction-btn { background: #ff9800; flex: 0 0 auto; }
+        .prediction-btn:hover { background: #f57c00; }
+        
+        .note { font-size: 0.8em; color: #666; margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 5px; }
+        .footer { text-align: center; margin-top: 20px; font-size: 0.8em; color: #777; padding-top: 15px; border-top: 1px solid #eee; }
+        
+        /* Modal styles */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background-color: white; border-radius: 10px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); position: relative; }
+        .modal-header { padding: 15px; background: #1e5799; color: white; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .close { font-size: 1.5em; cursor: pointer; padding: 0 5px; }
+        .modal-body { padding: 20px; }
+        
+        /* QR 分享與掃描樣式 */
+        .qrcode-container { display: flex; justify-content: center; align-items: center; padding: 20px; }
+        #qrcode { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+        .qr-segments { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 15px; }
+        .qr-segment { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; }
+        .qr-segment-label { font-size: 13px; color: #4b5563; margin-top: 8px; font-weight: 600; }
+        
+        .camera-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #1f2937; box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+        #video-preview { width: 100%; height: auto; display: block; object-fit: cover; }
+        .scan-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 2px solid #42B883; border-radius: 8px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); }
+        .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #2D82B7, #42B883); animation: scanAnimation 2s ease-in-out infinite; }
+        @keyframes scanAnimation { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
+        
+        .progress-container { width: 100%; background-color: #f3f4f6; border-radius: 5px; margin: 15px 0; overflow: hidden; display: none; }
+        .progress-bar { height: 10px; background: linear-gradient(90deg, #2D82B7, #42B883); width: 0%; transition: width 0.3s ease; }
+        .loading { display: none; text-align: center; padding: 15px; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #1e5799; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        @media (max-width: 480px) { .input-row { flex-direction: column; } button { min-width: 100%; } .prediction-inputs { flex-direction: column; align-items: stretch; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>探究導線長度對電阻的影響</h1>
+        <div class="subtitle">數據分析、誤差偵錯與跨裝置共享系統</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">輸入實驗數據</div>
+        <div class="input-group">
+            <div class="input-row">
+                <div class="input-field">
+                    <label for="length">導線長度 (m)</label>
+                    <input type="number" id="length" step="0.01" min="0.1" max="10" value="1.00">
+                </div>
+                <div class="input-field">
+                    <label for="current">電流 (A)</label>
+                    <input type="number" id="current" step="0.01" min="0.01" max="5" value="0.50">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-field">
+                    <label for="voltage">電壓 (V)</label>
+                    <input type="number" id="voltage" step="0.01" min="0.01" max="20" value="2.50">
+                </div>
+                <div class="input-field">
+                    <label>計算電阻 (Ω)</label>
+                    <input type="text" id="resistance" readonly value="5.00" style="background: #e9ecef;">
+                </div>
+            </div>
+        </div>
+        <div class="button-group">
+            <button id="add-data"><i>+</i> 添加數據點</button>
+            <button id="clear-data" class="secondary">清除所有數據</button>
+            <button id="demo-data" class="secondary">載入示範數據</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">實驗數據與誤差分析</div>
+        <div class="note" style="margin-top:0; margin-bottom:10px;">相同組別且長度相同的數據將會自動合併並取平均值。</div>
+        <div style="overflow-x: auto;">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>來源組別</th>
+                        <th>長度(m)</th>
+                        <th>電流(A)</th>
+                        <th>電壓(V)</th>
+                        <th>電阻(Ω)</th>
+                        <th>模型誤差</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="resistance-chart"></canvas>
+        </div>
+        
+        <div class="note">
+            全域數據回歸線 y = <span id="regression-slope">0.00</span>x + <span id="regression-intercept">0.00</span> 
+            | 模型可靠度 R² = <span id="regression-r2">0.0000</span>
+        </div>
+
+        <div id="debug-panel" class="debug-section" style="display: none;">
+            <div class="debug-title">🕵️ 數據偵錯與討論</div>
+            <ul id="anomaly-list" class="anomaly-list">
+                </ul>
+            <div class="discussion-prompt" id="discussion-prompt">
+                </div>
+        </div>
+
+        <div class="prediction-section">
+            <div style="font-weight: bold; margin-bottom: 10px; color: #e65100;">🔮 基於當前模型預測新值</div>
+            <div class="prediction-inputs">
+                <div class="input-field">
+                    <label for="predict-x">目標導線長度 (m)</label>
+                    <input type="number" id="predict-x" step="0.01" min="0.1" value="3.00">
+                </div>
+                <div class="input-field">
+                    <label for="predict-v">設定電壓 (V)</label>
+                    <input type="number" id="predict-v" step="0.01" min="0.1" value="5.00">
+                </div>
+                <button id="btn-predict" class="prediction-btn">開始預測</button>
+            </div>
+            
+            <div class="prediction-inputs" style="margin-top: 10px;">
+                <div class="input-field">
+                    <label>預計電阻 (Ω)</label>
+                    <input type="text" id="predict-r" readonly style="background: #fff; font-weight: bold; color: #e65100;">
+                </div>
+                <div class="input-field">
+                    <label>預計電流 (A)</label>
+                    <input type="text" id="predict-i" readonly style="background: #fff; font-weight: bold; color: #e65100;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">多組別數據共享</div>
+        <div class="input-field" style="margin-bottom: 15px;">
+            <label for="group-name">設定本機組別名稱 (分享時的標籤)：</label>
+            <input type="text" id="group-name" value="我的組別" placeholder="例如：第一組、王小明的數據">
+        </div>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div class="card" style="flex: 1; min-width: 250px; margin: 0; background: #e3f2fd; padding: 15px;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 1.5em; margin-right: 10px;">📤</span>
+                    <h3 style="margin: 0; color: #1e5799;">發送給其他組</h3>
+                </div>
+                <button id="generate-qr" style="width: 100%; background: #1e5799;">生成 QR 碼分享</button>
+            </div>
+            
+            <div class="card" style="flex: 1; min-width: 250px; margin: 0; background: #e8f5e9; padding: 15px;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 1.5em; margin-right: 10px;">📥</span>
+                    <h3 style="margin: 0; color: #388e3c;">接收他組數據</h3>
+                </div>
+                <button id="scan-qr" style="width: 100%; background: #388e3c;">掃描 QR 碼接收</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="share-title">📱 分享實驗數據</span>
+                <span class="close" onclick="closeModals()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="loading" id="qr-loading"><div class="spinner"></div><div>處理中...</div></div>
+                <div id="qr-content" style="display: none;">
+                    <div id="single-qr-container"><div class="qrcode-container"><div id="qrcode"></div></div></div>
+                    <div id="segmented-qr-container" style="display:none;">
+                        <div class="note" style="text-align: center; color: #1e5799; font-weight: bold;">數據量較大，請對方逐一掃描以下部分。</div>
+                        <div id="qr-segments" class="qr-segments"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scanner-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>📷 掃描接收數據</span>
+                <span class="close" onclick="closeModals()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="camera-container">
+                    <video id="video-preview" autoplay playsinline></video>
+                    <div class="scan-overlay"></div>
+                    <div class="scan-line"></div>
+                    <canvas id="scan-canvas" style="display:none;"></canvas>
+                </div>
+                <div class="progress-container" id="scan-progress"><div class="progress-bar" id="scan-progress-bar"></div></div>
+                <div class="note" id="scan-progress-text" style="text-align: center; font-weight: bold;">請對準 QR 碼...</div>
+                <div style="text-align: center; margin-top: 15px;"><button id="switch-camera" class="secondary">切換前後鏡頭</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dataPoints = []; 
+        let chart = null;
+        let regression = { slope: 0, intercept: 0, r2: 0 };
+        
+        const groupColors = ['#1e5799', '#388e3c', '#e65100', '#9c27b0', '#e91e63', '#009688', '#795548'];
+        let sourceColorMap = {};
+
+        const QR_SEGMENT_SIZE = 800;
+        let videoStream = null, scanning = false, currentFacingMode = "environment"; 
+        let receivedSegments = {}, totalExpectedSegments = 0;
+
+        const lengthInput = document.getElementById('length');
+        const currentInput = document.getElementById('current');
+        const voltageInput = document.getElementById('voltage');
+        const resistanceInput = document.getElementById('resistance');
+        const dataTable = document.getElementById('data-table').getElementsByTagName('tbody')[0];
+        const groupNameInput = document.getElementById('group-name');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            [lengthInput, currentInput, voltageInput].forEach(el => el.addEventListener('input', calculateResistance));
+            
+            document.getElementById('add-data').addEventListener('click', addData);
+            document.getElementById('clear-data').addEventListener('click', () => {
+                if (confirm('確定要清除所有數據嗎？')) { dataPoints = []; updateAll(); clearPrediction(); }
+            });
+            document.getElementById('demo-data').addEventListener('click', loadDemoData);
+            document.getElementById('btn-predict').addEventListener('click', predictNewValue);
+            document.getElementById('generate-qr').addEventListener('click', generateQRCode);
+            document.getElementById('scan-qr').addEventListener('click', startQRScanner);
+            document.getElementById('switch-camera').addEventListener('click', switchCameraDevice);
+
+            calculateResistance();
+            initChart();
+            updateColorMap(groupNameInput.value);
+        });
+
+        function closeModals() {
+            document.getElementById('share-modal').style.display = 'none';
+            document.getElementById('scanner-modal').style.display = 'none';
+            scanning = false;
+            if (videoStream) { videoStream.getTracks().forEach(track => track.stop()); videoStream = null; }
+        }
+        window.onclick = function(e) { if (e.target.classList.contains('modal')) closeModals(); }
+
+        function calculateResistance() {
+            const current = parseFloat(currentInput.value) || 0;
+            const voltage = parseFloat(voltageInput.value) || 0;
+            resistanceInput.value = current > 0 ? (voltage / current).toFixed(2) : '0.00';
+        }
+
+        function getMyGroupName() {
+            return groupNameInput.value.trim() || '未命名組別';
+        }
+
+        function updateColorMap(source) {
+            if (!sourceColorMap[source]) {
+                const colorIndex = Object.keys(sourceColorMap).length % groupColors.length;
+                sourceColorMap[source] = groupColors[colorIndex];
+            }
+            return sourceColorMap[source];
+        }
+
+        function addData() {
+            const length = parseFloat(lengthInput.value);
+            const current = parseFloat(currentInput.value);
+            const voltage = parseFloat(voltageInput.value);
+            if (isNaN(length) || isNaN(current) || isNaN(voltage) || length <= 0 || current <= 0 || voltage <= 0) {
+                return alert('請輸入有效的正數值');
+            }
+            
+            const source = getMyGroupName();
+            updateColorMap(source);
+            
+            dataPoints.push({ source, length, current, voltage, resistance: voltage / current, error: 0 });
+            updateAll(); 
+            clearPrediction();
+        }
+
+        function loadDemoData() {
+            const myGroup = getMyGroupName();
+            [0.5, 1.0, 1.5, 2.0].forEach(len => {
+                const res = len * 2.0 + (Math.random() * 0.1 - 0.05);
+                dataPoints.push({ source: myGroup, length: len, current: 5.0/res, voltage: 5.0, resistance: res, error: 0 });
+            });
+            
+            const otherGroup = "第二組 (模擬)";
+            updateColorMap(otherGroup);
+            [2.5, 3.0, 3.5].forEach(len => {
+                let res = len * 2.0;
+                if (len === 3.0) res = res * 1.35; 
+                else res += (Math.random() * 0.1 - 0.05);
+                dataPoints.push({ source: otherGroup, length: len, current: 5.0/res, voltage: 5.0, resistance: res, error: 0 });
+            });
+            
+            updateAll(); clearPrediction();
+        }
+
+        function deleteData(index) {
+            dataPoints.splice(index, 1);
+            updateAll(); clearPrediction();
+        }
+
+        // ================= 核心計算與更新 =================
+        function updateAll() {
+            mergeDuplicateData(); // 優先自動合併同長度的重複數據
+            calculateRegressionAndErrors(); 
+            updateDataTable();              
+            updateChart();                  
+            analyzeAnomalies();             
+        }
+
+        // 自動將相同組別且相同長度的數據合併平均
+        function mergeDuplicateData() {
+            const mergedMap = {};
+            dataPoints.forEach(p => {
+                // 以 "來源_長度" 作為合併的鍵值 (小數點後三位防止浮點數誤差)
+                const key = `${p.source}_${p.length.toFixed(3)}`;
+                if (!mergedMap[key]) {
+                    mergedMap[key] = { ...p, count: 1, sumI: p.current, sumV: p.voltage };
+                } else {
+                    mergedMap[key].count++;
+                    mergedMap[key].sumI += p.current;
+                    mergedMap[key].sumV += p.voltage;
+                }
+            });
+            
+            dataPoints = Object.values(mergedMap).map(m => {
+                if (m.count > 1) {
+                    const avgI = m.sumI / m.count;
+                    const avgV = m.sumV / m.count;
+                    return { source: m.source, length: m.length, current: avgI, voltage: avgV, resistance: avgV / avgI, error: 0 };
+                }
+                return { source: m.source, length: m.length, current: m.current, voltage: m.voltage, resistance: m.resistance, error: 0 };
+            });
+        }
+
+        function calculateRegressionAndErrors() {
+            if (dataPoints.length < 2) {
+                regression = { slope: 0, intercept: 0, r2: 0 };
+                dataPoints.forEach(p => p.error = 0);
+                return;
+            }
+            
+            const n = dataPoints.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            dataPoints.forEach(p => {
+                sumX += p.length; sumY += p.resistance;
+                sumXY += p.length * p.resistance; sumXX += p.length * p.length;
+            });
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            const meanY = sumY / n;
+            let ssTotal = 0, ssResidual = 0;
+            
+            dataPoints.forEach(p => {
+                const expectedY = slope * p.length + intercept;
+                ssTotal += Math.pow(p.resistance - meanY, 2);
+                ssResidual += Math.pow(p.resistance - expectedY, 2);
+                
+                if (expectedY !== 0) {
+                    p.error = Math.abs(p.resistance - expectedY) / expectedY * 100;
+                } else {
+                    p.error = 0;
+                }
+            });
+            
+            regression = { slope, intercept, r2: ssTotal === 0 ? 1 : 1 - (ssResidual / ssTotal) };
+        }
+
+        function updateDataTable() {
+            dataTable.innerHTML = '';
+            dataPoints.forEach((point, index) => {
+                const row = document.createElement('tr');
+                const isAnomaly = point.error > 10;
+                if (isAnomaly) row.className = 'anomaly-row';
+                
+                const bgColor = sourceColorMap[point.source] || '#999';
+                
+                row.innerHTML = `
+                    <td><span class="source-badge" style="background-color: ${bgColor}">${point.source}</span></td>
+                    <td>${point.length.toFixed(2)}</td>
+                    <td>${point.current.toFixed(2)}</td>
+                    <td>${point.voltage.toFixed(2)}</td>
+                    <td>${point.resistance.toFixed(2)}</td>
+                    <td style="font-weight: ${isAnomaly?'bold':'normal'}">${point.error > 0 ? point.error.toFixed(1) + '%' : '-'}</td>
+                    <td><button class="danger" style="padding: 4px 8px; font-size: 0.8em;" onclick="deleteData(${index})">刪除</button></td>
+                `;
+                dataTable.appendChild(row);
+            });
+        }
+
+        function analyzeAnomalies() {
+            const panel = document.getElementById('debug-panel');
+            const list = document.getElementById('anomaly-list');
+            const prompt = document.getElementById('discussion-prompt');
+            
+            const anomalies = dataPoints.filter(p => p.error > 10);
+            
+            if (anomalies.length === 0 || dataPoints.length < 3) {
+                panel.style.display = 'none'; return;
+            }
+            
+            panel.style.display = 'block';
+            list.innerHTML = '';
+            
+            const worst = anomalies.reduce((prev, current) => (prev.error > current.error) ? prev : current);
+            
+            anomalies.forEach(a => {
+                const li = document.createElement('li');
+                li.innerHTML = `來自 <b>[${a.source}]</b> (長度 ${a.length}m) 偏離預期 <b>${a.error.toFixed(1)}%</b>。`;
+                list.appendChild(li);
+            });
+            
+            let discussionHTML = `<b>🤔 討論與思考：</b><br>`;
+            const myGroup = getMyGroupName();
+            const foreignAnomalies = anomalies.filter(a => a.source !== myGroup);
+            const localAnomalies = anomalies.filter(a => a.source === myGroup);
+            
+            if (foreignAnomalies.length > 0 && localAnomalies.length === 0) {
+                discussionHTML += `👉 發現其他組別的數據與本地有顯著差異。可能是不同組別的<b>導線材質、截面積不同</b>，或有<b>系統誤差</b>。建議與他們核對變因！<br><br>`;
+            } else if (localAnomalies.length > 0) {
+                discussionHTML += `👉 本組有測量值誤差極大。請回憶：導線發熱導致電阻上升？讀數看錯？鱷魚夾接觸不良導致<b>接觸電阻</b>？<br><br>`;
+            }
+            
+            discussionHTML += `<i>建議：嘗試刪除異常點，觀察 R² 決定係數是否會提升？</i>`;
+            prompt.innerHTML = discussionHTML;
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('resistance-chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: [] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: (${ctx.raw.x}m, ${ctx.raw.y.toFixed(2)}Ω)` } } },
+                    scales: {
+                        x: { title: { display: true, text: '導線長度 (m)' } },
+                        y: { title: { display: true, text: '電阻 (Ω)' } }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!chart) return;
+            chart.data.datasets = [];
+            
+            document.getElementById('regression-slope').textContent = regression.slope.toFixed(2);
+            document.getElementById('regression-intercept').textContent = regression.intercept.toFixed(2);
+            document.getElementById('regression-r2').textContent = regression.r2.toFixed(4);
+
+            if (dataPoints.length === 0) { chart.update(); return; }
+
+            const groupedData = {};
+            dataPoints.forEach(p => {
+                if (!groupedData[p.source]) groupedData[p.source] = [];
+                groupedData[p.source].push({ x: p.length, y: p.resistance, error: p.error });
+            });
+
+            for (const [source, points] of Object.entries(groupedData)) {
+                const pointRadii = points.map(p => p.error > 10 ? 8 : 6);
+                const borderColors = points.map(p => p.error > 10 ? '#ff0000' : 'white');
+                const borderWidths = points.map(p => p.error > 10 ? 2 : 1);
+
+                chart.data.datasets.push({
+                    label: source,
+                    data: points,
+                    backgroundColor: sourceColorMap[source] || '#999',
+                    borderColor: borderColors,
+                    borderWidth: borderWidths,
+                    pointRadius: pointRadii,
+                    pointHoverRadius: 10
+                });
+            }
+
+            if (dataPoints.length >= 2) {
+                const minX = Math.min(...dataPoints.map(p => p.length));
+                const maxX = Math.max(...dataPoints.map(p => p.length));
+                chart.data.datasets.push({
+                    label: '綜合回歸線',
+                    data: [
+                        {x: 0, y: regression.intercept},
+                        {x: maxX * 1.1, y: regression.slope * (maxX * 1.1) + regression.intercept}
+                    ],
+                    type: 'line', borderColor: '#333', borderDash: [5, 5], borderWidth: 2, fill: false, pointRadius: 0
+                });
+            }
+            
+            chart.update();
+        }
+
+        // ================= 預測功能 =================
+        function predictNewValue() {
+            if (dataPoints.length < 2) return alert('請先添加至少兩組數據以建立模型。');
+            const targetX = parseFloat(document.getElementById('predict-x').value);
+            const targetV = parseFloat(document.getElementById('predict-v').value);
+            
+            if (isNaN(targetX) || targetX <= 0 || isNaN(targetV) || targetV <= 0) {
+                return alert('請輸入有效的目標長度與設定電壓');
+            }
+
+            // 先依據回歸模型計算電阻，再根據輸入電壓利用歐姆定律計算電流
+            const predictedR = regression.slope * targetX + regression.intercept;
+            const predictedI = targetV / predictedR;
+            
+            document.getElementById('predict-r').value = predictedR.toFixed(2);
+            document.getElementById('predict-i').value = predictedI.toFixed(2);
+
+            chart.data.datasets = chart.data.datasets.filter(ds => !ds.label.includes('預測'));
+
+            chart.data.datasets.push({
+                label: '預測輔助線',
+                data: [{ x: targetX, y: 0 }, { x: targetX, y: predictedR }, { x: 0, y: predictedR }],
+                borderColor: 'rgba(255, 152, 0, 0.7)', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false, type: 'line'
+            });
+
+            chart.data.datasets.push({
+                label: '預測點', data: [{ x: targetX, y: predictedR }],
+                backgroundColor: '#ff9800', borderColor: 'white', borderWidth: 2, pointRadius: 8, pointStyle: 'rectRot'
+            });
+            chart.update();
+        }
+        
+        function clearPrediction() { 
+            document.getElementById('predict-r').value = ''; 
+            document.getElementById('predict-i').value = ''; 
+        }
+
+        // ================= 跨平台分享 =================
+        function generateQRCode() {
+            if (dataPoints.length === 0) return alert('沒有數據可分享！');
+            const myGroup = getMyGroupName();
+            
+            const myData = dataPoints.filter(p => p.source === myGroup);
+            if (myData.length === 0) return alert('您目前只有接收自別組的數據，沒有本地數據可分享。');
+
+            document.getElementById('share-modal').style.display = 'block';
+            document.getElementById('share-title').textContent = `📱 分享 [${myGroup}] 的數據`;
+            document.getElementById('qr-loading').style.display = 'block';
+            document.getElementById('qr-content').style.display = 'none';
+
+            setTimeout(() => {
+                const payload = { experimentType: "wire-resistance", timestamp: Date.now(), source: myGroup, dataPoints: myData };
+                const compressed = pako.deflate(new TextEncoder().encode(JSON.stringify(payload)));
+                let binary = ''; for (let i = 0; i < compressed.byteLength; i++) binary += String.fromCharCode(compressed[i]);
+                const base64Data = btoa(binary);
+                const fullData = 'RES_EXP:2:' + base64Data;
+                
+                const singleCont = document.getElementById('single-qr-container');
+                const segCont = document.getElementById('segmented-qr-container');
+                singleCont.style.display = 'none'; segCont.style.display = 'none';
+
+                if (fullData.length <= QR_SEGMENT_SIZE) {
+                    singleCont.style.display = 'block';
+                    document.getElementById('qrcode').innerHTML = '';
+                    new QRCode(document.getElementById('qrcode'), { text: fullData, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+                } else {
+                    segCont.style.display = 'block';
+                    const segmentsContainer = document.getElementById('qr-segments');
+                    segmentsContainer.innerHTML = '';
+                    const totalSegments = Math.ceil(fullData.length / QR_SEGMENT_SIZE);
+                    for (let i = 0; i < totalSegments; i++) {
+                        const chunk = fullData.substring(i * QR_SEGMENT_SIZE, (i + 1) * QR_SEGMENT_SIZE);
+                        const wrapper = document.createElement('div'); wrapper.className = 'qr-segment';
+                        const qrDiv = document.createElement('div'); wrapper.appendChild(qrDiv);
+                        const label = document.createElement('div'); label.className = 'qr-segment-label'; label.textContent = `第 ${i+1}/${totalSegments} 部分`; wrapper.appendChild(label);
+                        segmentsContainer.appendChild(wrapper);
+                        new QRCode(qrDiv, { text: `${i+1}/${totalSegments}:${chunk}`, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.L });
+                    }
+                }
+                document.getElementById('qr-loading').style.display = 'none';
+                document.getElementById('qr-content').style.display = 'block';
+            }, 500);
+        }
+
+        // ================= 跨平台掃描接收 =================
+        async function startQRScanner() {
+            document.getElementById('scanner-modal').style.display = 'block';
+            receivedSegments = {}; totalExpectedSegments = 0;
+            updateScanProgress("請將相機對準 QR 碼...");
+            await initCamera();
+        }
+
+        async function initCamera() {
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            const video = document.getElementById('video-preview');
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
+                video.srcObject = videoStream; video.setAttribute("playsinline", true); 
+                await video.play(); scanning = true; requestAnimationFrame(scanLoop);
+            } catch (err) {
+                alert("相機啟動失敗，請確認權限。\n" + err.message); closeModals();
+            }
+        }
+
+        function switchCameraDevice() { currentFacingMode = currentFacingMode === "environment" ? "user" : "environment"; initCamera(); }
+
+        function scanLoop() {
+            if (!scanning) return;
+            const video = document.getElementById('video-preview');
+            const canvasElement = document.getElementById('scan-canvas');
+            const canvas = canvasElement.getContext('2d', { willReadFrequently: true });
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvasElement.height = video.videoHeight; canvasElement.width = video.videoWidth;
+                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+                const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+                if (code) handleScannedCode(code.data);
+            }
+            requestAnimationFrame(scanLoop);
+        }
+
+        function handleScannedCode(data) {
+            const match = data.match(/^(\d+)\/(\d+):(.*)$/);
+            if (match) {
+                const idx = parseInt(match[1]) - 1, total = parseInt(match[2]), chunk = match[3];
+                if (totalExpectedSegments === 0) totalExpectedSegments = total;
+                if (total === totalExpectedSegments && !receivedSegments[idx]) {
+                    receivedSegments[idx] = chunk;
+                    const count = Object.keys(receivedSegments).length;
+                    updateScanProgress(`讀取中... (${count}/${totalExpectedSegments})`);
+                    if (count === totalExpectedSegments) {
+                        scanning = false;
+                        let full = ''; for(let i=0; i<total; i++) full += receivedSegments[i];
+                        setTimeout(() => processReceivedData(full), 400);
+                    }
+                }
+            } else {
+                scanning = false; processReceivedData(data);
+            }
+        }
+
+        function updateScanProgress(text) {
+            document.getElementById('scan-progress-text').textContent = text;
+            if (totalExpectedSegments > 1) {
+                document.getElementById('scan-progress').style.display = 'block';
+                document.getElementById('scan-progress-bar').style.width = `${(Object.keys(receivedSegments).length / totalExpectedSegments) * 100}%`;
+            } else document.getElementById('scan-progress').style.display = 'none';
+        }
+
+        function processReceivedData(data) {
+            if (!data.startsWith('RES_EXP:')) return resetScan("格式錯誤");
+            try {
+                const parts = data.split(':');
+                const base64Data = parts[2];
+                const binary = atob(base64Data);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                
+                const jsonString = new TextDecoder().decode(pako.inflate(bytes));
+                const payload = JSON.parse(jsonString);
+                
+                if (payload.experimentType === 'wire-resistance' && payload.dataPoints) {
+                    const senderSource = payload.source || '未知組別';
+                    updateColorMap(senderSource); 
+                    
+                    // 將收到的數據加入（後續updateAll會自動進行長度重複合併）
+                    payload.dataPoints.forEach(np => {
+                        dataPoints.push({ source: senderSource, length: np.length, current: np.current, voltage: np.voltage, resistance: np.resistance, error: 0 });
+                    });
+                    
+                    updateAll(); clearPrediction(); closeModals();
+                    alert(`成功接收來自 [${senderSource}] 的數據！\n同長度數據已自動為您合併平均。`);
+                } else throw new Error();
+            } catch (e) { resetScan("解析失敗，請重試"); }
+        }
+        function resetScan(msg) { alert(msg); receivedSegments = {}; totalExpectedSegments = 0; updateScanProgress("請對準 QR 碼..."); scanning = true; }
+    </script>
+</body>
+</html>
