@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>導線電阻實驗探究系統 | 數據共享版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 15px;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding-bottom: 60px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px 0;
+            background: linear-gradient(135deg, #1e5799 0%, #207cca 51%, #2989d8 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 1.4em;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1e5799;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-title::before {
+            content: "•";
+            margin-right: 8px;
+            color: #1e5799;
+            font-size: 1.5em;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-field {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-size: 0.85em;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        
+        input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: #1e5799;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            background: #1a4a85;
+        }
+        
+        button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        button.secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        button.danger {
+            background: #ff4444;
+        }
+        
+        button.danger:hover {
+            background: #e03333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #f0f5ff;
+            font-weight: bold;
+        }
+        
+        tr.anomaly td {
+            background-color: #ffebee;
+        }
+        
+        .chart-container {
+            height: 250px;
+            margin-top: 15px;
+        }
+        
+        .prediction-section {
+            background: #f0f7ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .prediction-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .prediction-results {
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .note {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        
+        .modal-header {
+            padding: 15px;
+            background: #1e5799;
+            color: white;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close {
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .qrcode-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            min-height: 280px;
+        }
+        
+        #qrcode {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: black;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        #scanner-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            background: rgba(0,0,0,0.3);
+        }
+        
+        .scanner-guide {
+            position: absolute;
+            border: 2px solid #00ff00;
+            width: 240px;
+            height: 240px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .steps {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .step {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .step-number {
+            background: #1e5799;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #777;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 15px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #1e5799;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .input-row {
+                flex-direction: column;
+            }
+            
+            button {
+                min-width: 100%;
+            }
+            
+            .prediction-inputs {
+                flex-direction: column;
+            }
+            
+            .scanner-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>探究導線長度對電阻的影響</h1>
+        <div class="subtitle">科學實驗模擬系統 | 數據共享版</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">實驗步驟</div>
+        <ol style="padding-left: 20px; margin-bottom: 15px;">
+            <li style="margin-bottom: 8px;">輸入導線長度、電流和電壓值（系統會自動計算電阻）</li>
+            <li style="margin-bottom: 8px;">點擊「添加數據點」將數據添加到實驗記錄中</li>
+            <li style="margin-bottom: 8px;">重複步驟1-2，添加至少5組不同長度的數據</li>
+            <li style="margin-bottom: 8px;">系統會自動繪製散點圖並計算線性回歸方程</li>
+            <li style="margin-bottom: 8px;">若數據點偏離回歸線過遠，系統會標記為異常點（紅色背景）</li>
+            <li style="margin-bottom: 8px;">點擊數據表中的「刪除」按鈕，刪除異常點</li>
+            <li>使用預測區輸入新長度和電壓，預測電阻和電流值</li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <div class="card-title">輸入實驗數據</div>
+        <div class="input-group">
+            <div class="input-row">
+                <div class="input-field">
+                    <label for="length">導線長度 (m)</label>
+                    <input type="number" id="length" step="0.01" min="0.1" max="10" value="1.00">
+                </div>
+                <div class="input-field">
+                    <label for="current">電流 (A)</label>
+                    <input type="number" id="current" step="0.01" min="0.01" max="5" value="0.50">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-field">
+                    <label for="voltage">電壓 (V)</label>
+                    <input type="number" id="voltage" step="0.01" min="0.01" max="20" value="2.50">
+                </div>
+                <div class="input-field">
+                    <label>電阻 (Ω)</label>
+                    <input type="text" id="resistance" readonly value="5.00">
+                </div>
+            </div>
+        </div>
+        <div class="button-group">
+            <button id="add-data"><i>+</i> 添加數據點</button>
+            <button id="clear-data" class="secondary">清除數據</button>
+            <button id="demo-data" class="secondary">示範數據</button>
+            <button id="share-data">分享實驗數據</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">實驗數據</div>
+        <div class="note">當數據點偏離回歸線過遠時，系統會標記為異常點（紅色背景）。點擊數據表中的「刪除」按鈕可刪除這些點。</div>
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th>導線長度 (m)</th>
+                    <th>電流 (A)</th>
+                    <th>電壓 (V)</th>
+                    <th>電阻 (Ω)</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 數據行將通過JavaScript動態添加 -->
+            </tbody>
+        </table>
+        
+        <div class="chart-container">
+            <canvas id="resistance-chart"></canvas>
+        </div>
+        
+        <div class="note" style="margin-top: 10px;">
+            實驗數據回歸線 y = <span id="regression-slope">0.00</span>x + <span id="regression-intercept">0.00</span><br>
+            決定係數 R² = <span id="regression-r2">0.0000</span> 🔮
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">預測新值</div>
+        <div class="prediction-section">
+            <div class="prediction-inputs">
+                <div class="input-field">
+                    <label for="predict-length">導線長度 (m)</label>
+                    <input type="number" id="predict-length" step="0.01" min="0.1" max="10" value="2.00">
+                </div>
+                <div class="input-field">
+                    <label for="predict-voltage">電壓 (V)</label>
+                    <input type="number" id="predict-voltage" step="0.01" min="0.01" max="20" value="5.00">
+                </div>
+            </div>
+            <button id="calculate-prediction" style="width: 100%;">計算預測值</button>
+            
+            <div class="prediction-results">
+                <div>
+                    預計電阻 (Ω)<br>
+                    <span id="predicted-resistance">0.00</span>
+                </div>
+                <div>
+                    預計電流 (A)<br>
+                    <span id="predicted-current">0.00</span>
+                </div>
+            </div>
+        </div>
+        <div class="note">
+            注意： 預測值基於線性回歸模型計算。當數據點數量不足或分佈不均時，預測準確度可能降低。
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">數據共享</div>
+        
+        <div class="card" style="margin-top: 15px; background: #e3f2fd;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 1.5em; margin-right: 10px;">📱</span>
+                <h3 style="margin: 0; color: #1e5799;">生成QR碼分享數據</h3>
+            </div>
+            <p style="margin-bottom: 15px; line-height: 1.4;">
+                點擊下方按鈕生成QR碼，使用另一台設備掃描即可接收實驗數據，無需網絡連接。
+            </p>
+            <button id="generate-qr" style="width: 100%; background: #4caf50;">
+                生成QR碼分享數據
+            </button>
+        </div>
+        
+        <div class="card" style="background: #e8f5e9;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 1.5em; margin-right: 10px;">📷</span>
+                <h3 style="margin: 0; color: #388e3c;">掃描QR碼接收數據</h3>
+            </div>
+            <p style="margin-bottom: 15px; line-height: 1.4;">
+                點擊下方按鈕掃描其他設備生成的QR碼，接收並整合實驗數據。
+            </p>
+            <button id="scan-qr" style="width: 100%; background: #388e3c;">
+                掃描QR碼接收數據
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        導線電阻實驗探究系統 | 基於歐姆定律的科學實驗模擬 | 數據共享功能
+    </div>
+
+    <!-- 分享模態窗口 -->
+    <div id="share-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>📱 分享實驗數據 ➡️ 📱 ➡️</span>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="loading" id="qr-loading">
+                    <div class="spinner"></div>
+                    <div>正在生成QR碼...</div>
+                    <div id="qr-message" style="margin-top: 10px;"></div>
+                </div>
+                <div id="qr-content">
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div>請另一台設備點擊「接收實驗數據」</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div>使用該設備掃描此QR碼</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div>數據將自動傳輸並整合</div>
+                        </div>
+                    </div>
+                    
+                    <div class="note" style="margin: 15px 0;">
+                        注意： 兩台設備需在同一物理位置，且接收設備需授予相機權限。
+                    </div>
+                    
+                    <div class="qrcode-container">
+                        <div id="qrcode"></div>
+                    </div>
+                    
+                    <div class="note" style="margin-top: 15px; text-align: center;">
+                        QR碼包含最近20組實驗數據點<br>
+                        請在5分鐘內完成掃描
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 掃描模態窗口 -->
+    <div id="scanner-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>📷 掃描QR碼接收數據 📱 ➡️ 📱</span>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div>將相機對準另一台設備顯示的QR碼</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div>保持穩定直到自動識別</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div>數據將自動整合到當前實驗</div>
+                    </div>
+                </div>
+                
+                <div class="note" style="margin: 15px 0;">
+                    注意： 需要授予相機權限。如果無法識別，請確保光線充足且QR碼完整可見。
+                </div>
+                
+                <div class="scanner-container">
+                    <video id="scanner-video" autoplay playsinline></video>
+                    <div class="scanner-guide"></div>
+                    <div class="scanner-overlay" id="scanner-overlay">
+                        <div>正在啟動相機...</div>
+                    </div>
+                </div>
+                
+                <div class="note" style="margin-top: 15px; text-align: center;">
+                    請將QR碼置於綠色框內
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 數據存儲
+        let dataPoints = [];
+        let chart = null;
+        let regression = {
+            slope: 0,
+            intercept: 0,
+            r2: 0
+        };
+        
+        // QR碼掃描相關變量
+        let quaggaInitialized = false;
+        let scannerStream = null;
+        let scanTimeout = null;
+        
+        // DOM元素
+        const lengthInput = document.getElementById('length');
+        const currentInput = document.getElementById('current');
+        const voltageInput = document.getElementById('voltage');
+        const resistanceInput = document.getElementById('resistance');
+        const dataTable = document.getElementById('data-table').getElementsByTagName('tbody')[0];
+        const addDataBtn = document.getElementById('add-data');
+        const clearDataBtn = document.getElementById('clear-data');
+        const demoDataBtn = document.getElementById('demo-data');
+        const shareDataBtn = document.getElementById('share-data');
+        const generateQrBtn = document.getElementById('generate-qr');
+        const scanQrBtn = document.getElementById('scan-qr');
+        const calculatePredictionBtn = document.getElementById('calculate-prediction');
+        
+        // 模態窗口
+        const shareModal = document.getElementById('share-modal');
+        const scannerModal = document.getElementById('scanner-modal');
+        const closeModalButtons = document.querySelectorAll('.close');
+        const qrLoading = document.getElementById('qr-loading');
+        const qrContent = document.getElementById('qr-content');
+        const qrMessage = document.getElementById('qr-message');
+        const scannerVideo = document.getElementById('scanner-video');
+        const scannerOverlay = document.getElementById('scanner-overlay');
+        
+        // 預測相關元素
+        const predictLength = document.getElementById('predict-length');
+        const predictVoltage = document.getElementById('predict-voltage');
+        const predictedResistance = document.getElementById('predicted-resistance');
+        const predictedCurrent = document.getElementById('predicted-current');
+        
+        // 回歸相關元素
+        const regressionSlope = document.getElementById('regression-slope');
+        const regressionIntercept = document.getElementById('regression-intercept');
+        const regressionR2 = document.getElementById('regression-r2');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 計算電阻
+            function calculateResistance() {
+                const current = parseFloat(currentInput.value) || 0;
+                const voltage = parseFloat(voltageInput.value) || 0;
+                
+                if (current > 0) {
+                    const resistance = voltage / current;
+                    resistanceInput.value = resistance.toFixed(2);
+                } else {
+                    resistanceInput.value = '0.00';
+                }
+            }
+            
+            // 添加事件監聽
+            lengthInput.addEventListener('input', calculateResistance);
+            currentInput.addEventListener('input', calculateResistance);
+            voltageInput.addEventListener('input', calculateResistance);
+            
+            // 添加數據點
+            addDataBtn.addEventListener('click', function() {
+                const length = parseFloat(lengthInput.value);
+                const current = parseFloat(currentInput.value);
+                const voltage = parseFloat(voltageInput.value);
+                
+                if (isNaN(length) || isNaN(current) || isNaN(voltage) || length <= 0 || current <= 0 || voltage <= 0) {
+                    alert('請輸入有效的正數值');
+                    return;
+                }
+                
+                const resistance = voltage / current;
+                
+                // 添加到數據點數組
+                dataPoints.push({
+                    length: length,
+                    current: current,
+                    voltage: voltage,
+                    resistance: resistance
+                });
+                
+                // 更新表格和圖表
+                updateDataTable();
+                updateChart();
+                
+                // 清空輸入
+                lengthInput.value = '1.00';
+                currentInput.value = '0.50';
+                voltageInput.value = '2.50';
+                calculateResistance();
+            });
+            
+            // 清除數據
+            clearDataBtn.addEventListener('click', function() {
+                if (confirm('確定要清除所有實驗數據嗎？')) {
+                    dataPoints = [];
+                    updateDataTable();
+                    updateChart();
+                }
+            });
+            
+            // 添加示範數據
+            demoDataBtn.addEventListener('click', function() {
+                // 清除現有數據
+                dataPoints = [];
+                
+                // 添加示範數據
+                const lengths = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+                lengths.forEach(length => {
+                    const resistance = length * 2.0; // 假設電阻率為2.0 Ω/m
+                    const voltage = 5.0;
+                    const current = voltage / resistance;
+                    
+                    dataPoints.push({
+                        length: length,
+                        current: current,
+                        voltage: voltage,
+                        resistance: resistance
+                    });
+                });
+                
+                // 更新界面
+                updateDataTable();
+                updateChart();
+            });
+            
+            // 生成QR碼分享
+            generateQrBtn.addEventListener('click', generateQRCode);
+            shareDataBtn.addEventListener('click', generateQRCode);
+            
+            // 掃描QR碼
+            scanQrBtn.addEventListener('click', startQRScanner);
+            
+            // 計算預測值
+            calculatePredictionBtn.addEventListener('click', calculatePrediction);
+            
+            // 關閉模態窗口
+            closeModalButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    shareModal.style.display = 'none';
+                    closeScanner();
+                });
+            });
+            
+            // 點擊模態窗口外部關閉
+            window.addEventListener('click', function(event) {
+                if (event.target === shareModal) {
+                    shareModal.style.display = 'none';
+                }
+                if (event.target === scannerModal) {
+                    closeScanner();
+                }
+            });
+            
+            // 初始計算
+            calculateResistance();
+            initChart();
+        });
+        
+        // 關閉掃描器
+        function closeScanner() {
+            scannerModal.style.display = 'none';
+            stopScanner();
+        }
+        
+        // 停止掃描器
+        function stopScanner() {
+            // 停止QuaggaJS
+            if (quaggaInitialized) {
+                try {
+                    Quagga.stop();
+                    quaggaInitialized = false;
+                } catch (e) {
+                    console.log("Quagga is not running");
+                }
+            }
+            
+            // 停止相機
+            if (scannerStream) {
+                scannerStream.getTracks().forEach(track => track.stop());
+                scannerStream = null;
+            }
+            
+            // 重置視頻元素
+            scannerVideo.srcObject = null;
+        }
+        
+        // 初始化圖表
+        function initChart() {
+            const ctx = document.getElementById('resistance-chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '實驗數據點',
+                        data: [],
+                        backgroundColor: '#1e5799',
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }, {
+                        label: '回歸線',
+                        data: [],
+                        type: 'line',
+                        borderColor: '#ff0000',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        showLine: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '導線長度 (m)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '電阻 (Ω)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = dataPoints[context.dataIndex];
+                                    return [
+                                        `長度: ${point.length} m`,
+                                        `電阻: ${point.resistance.toFixed(2)} Ω`,
+                                        `電壓: ${point.voltage} V`,
+                                        `電流: ${point.current.toFixed(2)} A`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新圖表
+        function updateChart() {
+            if (!chart) return;
+            
+            // 更新數據點
+            const points = dataPoints.map(point => ({
+                x: point.length,
+                y: point.resistance
+            }));
+            
+            // 計算回歸線
+            if (dataPoints.length >= 2) {
+                const result = calculateLinearRegression(dataPoints);
+                regression = result;
+                
+                // 更新回歸係數顯示
+                regressionSlope.textContent = result.slope.toFixed(2);
+                regressionIntercept.textContent = result.intercept.toFixed(2);
+                regressionR2.textContent = result.r2.toFixed(4);
+                
+                // 計算回歸線數據
+                if (points.length > 0) {
+                    const minX = Math.min(...points.map(p => p.x));
+                    const maxX = Math.max(...points.map(p => p.x));
+                    
+                    const regressionLine = [
+                        {x: minX, y: result.slope * minX + result.intercept},
+                        {x: maxX, y: result.slope * maxX + result.intercept}
+                    ];
+                    
+                    // 更新圖表
+                    chart.data.datasets[0].data = points;
+                    chart.data.datasets[1].data = regressionLine;
+                    
+                    // 標記異常點
+                    markAnomalyPoints(result);
+                }
+            } else {
+                // 重置回歸係數
+                regressionSlope.textContent = '0.00';
+                regressionIntercept.textContent = '0.00';
+                regressionR2.textContent = '0.0000';
+                
+                // 只更新數據點
+                chart.data.datasets[0].data = points;
+                chart.data.datasets[1].data = [];
+            }
+            
+            chart.update();
+        }
+        
+        // 標記異常點
+        function markAnomalyPoints(regression) {
+            const tableRows = dataTable.querySelectorAll('tr');
+            
+            tableRows.forEach((row, index) => {
+                const point = dataPoints[index];
+                if (!point) return;
+                
+                // 計算預測值
+                const predictedResistance = regression.slope * point.length + regression.intercept;
+                // 計算殘差
+                const residual = Math.abs(point.resistance - predictedResistance);
+                // 計算標準差
+                const stdDev = calculateStdDev(dataPoints.map(p => 
+                    p.resistance - (regression.slope * p.length + regression.intercept)
+                ));
+                
+                // 如果殘差大於2個標準差，標記為異常
+                if (stdDev > 0 && residual > 2 * stdDev) {
+                    row.classList.add('anomaly');
+                } else {
+                    row.classList.remove('anomaly');
+                }
+            });
+        }
+        
+        // 計算標準差
+        function calculateStdDev(values) {
+            const n = values.length;
+            if (n <= 1) return 0;
+            
+            const mean = values.reduce((sum, val) => sum + val, 0) / n;
+            const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+            const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / (n - 1);
+            
+            return Math.sqrt(variance);
+        }
+        
+        // 計算線性回歸
+        function calculateLinearRegression(points) {
+            const n = points.length;
+            let sumX = 0;
+            let sumY = 0;
+            let sumXY = 0;
+            let sumXX = 0;
+            let sumYY = 0;
+            
+            points.forEach(point => {
+                sumX += point.length;
+                sumY += point.resistance;
+                sumXY += point.length * point.resistance;
+                sumXX += point.length * point.length;
+                sumYY += point.resistance * point.resistance;
+            });
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            // 計算R²
+            const meanY = sumY / n;
+            let ssTotal = 0;
+            let ssResidual = 0;
+            
+            points.forEach(point => {
+                const predictedY = slope * point.length + intercept;
+                ssTotal += Math.pow(point.resistance - meanY, 2);
+                ssResidual += Math.pow(point.resistance - predictedY, 2);
+            });
+            
+            const r2 = 1 - (ssResidual / ssTotal);
+            
+            return {
+                slope: slope,
+                intercept: intercept,
+                r2: r2
+            };
+        }
+        
+        // 更新數據表
+        function updateDataTable() {
+            // 清空表格
+            dataTable.innerHTML = '';
+            
+            // 添加數據行
+            dataPoints.forEach((point, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${point.length.toFixed(2)}</td>
+                    <td>${point.current.toFixed(2)}</td>
+                    <td>${point.voltage.toFixed(2)}</td>
+                    <td>${point.resistance.toFixed(2)}</td>
+                    <td><button class="danger" data-index="${index}">刪除</button></td>
+                `;
+                
+                // 添加刪除功能
+                const deleteBtn = row.querySelector('button');
+                deleteBtn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    dataPoints.splice(index, 1);
+                    updateDataTable();
+                    updateChart();
+                });
+                
+                dataTable.appendChild(row);
+            });
+            
+            // 如果沒有數據，顯示提示行
+            if (dataPoints.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="5" style="text-align: center; padding: 20px;">
+                        尚未添加任何數據點<br>
+                        請輸入實驗數據並點擊「添加數據點」
+                    </td>
+                `;
+                dataTable.appendChild(row);
+            }
+        }
+        
+        // 計算預測值
+        function calculatePrediction() {
+            const length = parseFloat(predictLength.value);
+            const voltage = parseFloat(predictVoltage.value);
+            
+            if (isNaN(length) || isNaN(voltage) || length <= 0 || voltage <= 0) {
+                alert('請輸入有效的正數值');
+                return;
+            }
+            
+            // 使用回歸模型預測電阻
+            const predictedResistance = regression.slope * length + regression.intercept;
+            const predictedCurrent = voltage / predictedResistance;
+            
+            // 更新顯示
+            document.getElementById('predicted-resistance').textContent = predictedResistance.toFixed(2);
+            document.getElementById('predicted-current').textContent = predictedCurrent.toFixed(2);
+        }
+        
+        // 生成QR碼
+        function generateQRCode() {
+            // 檢查是否有足夠數據
+            if (dataPoints.length === 0) {
+                alert('請先添加至少一組實驗數據');
+                return;
+            }
+            
+            // 顯示模態窗口
+            shareModal.style.display = 'block';
+            
+            // 顯示加載狀態
+            qrLoading.style.display = 'block';
+            qrContent.style.display = 'none';
+            
+            // 500ms延遲以確保UI更新
+            setTimeout(() => {
+                try {
+                    // 只取最近20組數據
+                    const recentData = dataPoints.slice(-20);
+                    
+                    // 構建帶有元數據的數據結構
+                    const payload = {
+                        experimentType: "wire-resistance",
+                        timestamp: Date.now(),
+                        version: "1.0",
+                        deviceInfo: {
+                            platform: navigator.platform,
+                            userAgent: navigator.userAgent
+                        },
+                        dataPoints: recentData
+                    };
+                    
+                    // 將數據壓縮以適應QR碼容量限制
+                    const compressedData = LZString.compressToBase64(JSON.stringify(payload));
+                    
+                    // 生成QR碼
+                    const qrCodeContainer = document.getElementById('qrcode');
+                    qrCodeContainer.innerHTML = '';
+                    
+                    new QRCode(qrCodeContainer, {
+                        text: compressedData,
+                        width: 256,
+                        height: 256,
+                        correctLevel: QRCode.CorrectLevel.H // 高容錯率
+                    });
+                    
+                    // 更新UI
+                    qrLoading.style.display = 'none';
+                    qrContent.style.display = 'block';
+                    
+                    // 顯示消息
+                    if (dataPoints.length > 20) {
+                        qrMessage.textContent = '注意： 數據量較大，已自動限制為最近20組數據點。';
+                    } else {
+                        qrMessage.textContent = '';
+                    }
+                } catch (e) {
+                    console.error('QR碼生成失敗:', e);
+                    qrLoading.style.display = 'none';
+                    alert('無法生成QR碼，請重試');
+                }
+            }, 500);
+        }
+        
+        // 開始QR掃描
+        function startQRScanner() {
+            // 顯示模態窗口
+            scannerModal.style.display = 'block';
+            scannerOverlay.innerHTML = '<div>正在啟動相機...</div>';
+            scannerOverlay.style.display = 'flex';
+            
+            // 停止任何現有的掃描
+            stopScanner();
+            
+            // 檢查相機權限
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('您的瀏覽器不支持相機訪問');
+                scannerModal.style.display = 'none';
+                return;
+            }
+            
+            // 設置相機配置 - 使用更簡單的配置提高兼容性
+            const cameraConfig = {
+                video: {
+                    facingMode: 'environment'
+                }
+            };
+            
+            // 尝试获取后置摄像头，如果失败则使用默认摄像头
+            navigator.mediaDevices.getUserMedia(cameraConfig)
+                .then(function(stream) {
+                    scannerStream = stream;
+                    scannerVideo.srcObject = stream;
+                    scannerVideo.setAttribute('playsinline', true);
+                    
+                    // 處理iOS設備
+                    if (/iPad|iPhone|iPod/.test(navigator.platform)) {
+                        scannerVideo.muted = true;
+                    }
+                    
+                    return scannerVideo.play();
+                })
+                .then(function() {
+                    // 延遲初始化QuaggaJS，確保視頻已加載
+                    setTimeout(initializeQuagga, 500);
+                })
+                .catch(function(err) {
+                    console.error('相機訪問失敗:', err);
+                    
+                    // 嘗試使用默認配置
+                    const fallbackConfig = {
+                        video: true
+                    };
+                    
+                    navigator.mediaDevices.getUserMedia(fallbackConfig)
+                        .then(function(stream) {
+                            scannerStream = stream;
+                            scannerVideo.srcObject = stream;
+                            scannerVideo.setAttribute('playsinline', true);
+                            
+                            if (/iPad|iPhone|iPod/.test(navigator.platform)) {
+                                scannerVideo.muted = true;
+                            }
+                            
+                            return scannerVideo.play();
+                        })
+                        .then(function() {
+                            setTimeout(initializeQuagga, 500);
+                        })
+                        .catch(function(fallbackErr) {
+                            console.error('備用相機配置失敗:', fallbackErr);
+                            let errorMessage = '無法訪問相機，請檢查：\n';
+                            
+                            if (fallbackErr.name === 'NotAllowedError') {
+                                errorMessage += '• 您可能拒絕了相機權限\n';
+                                errorMessage += '• 請確保在安全上下文(HTTPS)中運行';
+                            } else if (fallbackErr.name === 'NotFoundError') {
+                                errorMessage += '• 未檢測到可用相機';
+                            } else {
+                                errorMessage += '• ' + fallbackErr.message;
+                            }
+                            
+                            alert(errorMessage);
+                            scannerModal.style.display = 'none';
+                        });
+                });
+        }
+        
+        // 初始化QuaggaJS
+        function initializeQuagga() {
+            // 防止重複初始化
+            if (quaggaInitialized) {
+                return;
+            }
+            
+            // 獲取視頻元素尺寸
+            const video = scannerVideo;
+            const videoWidth = video.videoWidth || 640;
+            const videoHeight = video.videoHeight || 480;
+            
+            // 設置Quagga配置 - 簡化配置提高兼容性
+            const quaggaConfig = {
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: video,
+                    constraints: {
+                        width: videoWidth,
+                        height: videoHeight
+                    }
+                },
+                decoder: {
+                    readers: ["qrcode_reader"]
+                }
+            };
+            
+            // 初始化Quagga
+            Quagga.init(quaggaConfig, function(err) {
+                if (err) {
+                    console.error('初始化Quagga失敗:', err);
+                    
+                    // 顯示錯誤信息但繼續嘗試
+                    scannerOverlay.innerHTML = '<div style="color: #ff4444;">相機已啟動，但QR碼識別可能有問題</div>';
+                    
+                    // 設置超時，避免一直顯示加載
+                    clearTimeout(scanTimeout);
+                    scanTimeout = setTimeout(function() {
+                        scannerOverlay.style.display = 'none';
+                    }, 2000);
+                    
+                    return;
+                }
+                
+                // 啟動Quagga
+                Quagga.start();
+                quaggaInitialized = true;
+                scannerOverlay.style.display = 'none';
+                
+                // 設置超時，避免一直顯示加載
+                clearTimeout(scanTimeout);
+                scanTimeout = setTimeout(function() {
+                    scannerOverlay.style.display = 'none';
+                }, 1000);
+                
+                // 監聽掃描結果
+                Quagga.onDetected(function(result) {
+                    try {
+                        // 解壓縮和解析數據
+                        const decodedData = LZString.decompressFromBase64(result.codeResult.code);
+                        const payload = JSON.parse(decodedData);
+                        
+                        // 驗證數據格式
+                        if (!verifyDataIntegrity(payload)) {
+                            alert('掃描到的QR碼格式無效或不屬於電阻實驗數據');
+                            return;
+                        }
+                        
+                        // 合併數據
+                        mergeReceivedData(payload.dataPoints);
+                        
+                        // 停止掃描
+                        stopScanner();
+                        
+                        // 關閉模態窗口
+                        scannerModal.style.display = 'none';
+                        alert('數據成功接收並合併！');
+                    } catch (e) {
+                        console.error('數據解析失敗:', e);
+                        alert('無法解析掃描到的數據，請重試');
+                    }
+                });
+            });
+        }
+        
+        // 驗證數據完整性
+        function verifyDataIntegrity(payload) {
+            // 檢查必填字段
+            if (!payload.experimentType || 
+                !payload.timestamp || 
+                !payload.dataPoints || 
+                payload.experimentType !== "wire-resistance") {
+                return false;
+            }
+            
+            // 檢查數據點格式
+            return payload.dataPoints.every(point => 
+                typeof point.length === 'number' && 
+                typeof point.voltage === 'number' &&
+                typeof point.current === 'number' &&
+                point.length > 0 &&
+                point.voltage > 0 &&
+                point.current > 0
+            );
+        }
+        
+        // 合併接收的數據
+        function mergeReceivedData(receivedPoints) {
+            const mergedData = [...dataPoints];
+            let newPointsCount = 0;
+            
+            // 檢查每個接收的數據點是否已存在
+            receivedPoints.forEach(newPoint => {
+                const exists = dataPoints.some(point => 
+                    Math.abs(point.length - newPoint.length) < 0.01 &&
+                    Math.abs(point.voltage - newPoint.voltage) < 0.01 &&
+                    Math.abs(point.current - newPoint.current) < 0.01
+                );
+                
+                if (!exists) {
+                    mergedData.push(newPoint);
+                    newPointsCount++;
+                }
+            });
+            
+            // 更新本地數據
+            dataPoints = mergedData;
+            
+            // 更新界面
+            updateDataTable();
+            updateChart();
+            
+            // 顯示結果
+            if (newPointsCount > 0) {
+                alert(`成功合併 ${newPointsCount} 組新數據點！`);
+            } else {
+                alert('未發現新數據點，所有接收的數據已存在於本地');
+            }
+        }
+        
+        // 動態加載QuaggaJS庫
+        function loadQuaggaJS() {
+            return new Promise((resolve, reject) => {
+                // 檢查是否已加載
+                if (typeof Quagga !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // 初始化QR碼掃描功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 延遲加載QuaggaJS，避免影響初始頁面加載
+            scanQrBtn.addEventListener('click', function() {
+                scannerOverlay.innerHTML = '<div>正在加載QR碼掃描庫...</div>';
+                scannerOverlay.style.display = 'flex';
+                
+                loadQuaggaJS()
+                    .then(() => {
+                        startQRScanner();
+                    })
+                    .catch(err => {
+                        console.error('加載QuaggaJS失敗:', err);
+                        scannerOverlay.innerHTML = '<div style="color: #ff4444;">無法加載QR碼掃描功能，請檢查網絡連接</div>';
+                        setTimeout(() => {
+                            scannerModal.style.display = 'none';
+                        }, 2000);
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
